@@ -165,12 +165,13 @@ const I={
 const DB=(()=>{
   let db;
   const open=()=>new Promise((res,rej)=>{
-    const r=indexedDB.open('photosorter',1);
-    r.onupgradeneeded=e=>{const d=e.target.result;
-      d.createObjectStore('photos',{keyPath:'id'});
-      d.createObjectStore('items',{keyPath:'id'});
-      d.createObjectStore('cats',{keyPath:'id'});
-      d.createObjectStore('meta',{keyPath:'k'});};
+    const r=indexedDB.open('photosorter',2);
+    r.onupgradeneeded=e=>{const d=e.target.result;const has=n=>d.objectStoreNames.contains(n);
+      if(!has('photos'))d.createObjectStore('photos',{keyPath:'id'});
+      if(!has('items'))d.createObjectStore('items',{keyPath:'id'});
+      if(!has('cats'))d.createObjectStore('cats',{keyPath:'id'});
+      if(!has('meta'))d.createObjectStore('meta',{keyPath:'k'});
+      if(!has('blobs'))d.createObjectStore('blobs',{keyPath:'id'});};
     r.onsuccess=()=>{db=r.result;res()};r.onerror=()=>rej(r.error);
   });
   const tx=(s,m,fn)=>new Promise((res,rej)=>{const t=db.transaction(s,m);const st=t.objectStore(s);const q=fn(st);t.oncomplete=()=>res(q&&q.result);t.onerror=()=>rej(t.error)});
@@ -219,6 +220,18 @@ async function seedQuick(){
 async function load(){
   await DB.open();
   S.cats=await DB.all('cats');S.items=await DB.all('items');S.photos=await DB.all('photos');
+  const blobs=new Map((await DB.all('blobs')).map(b=>[b.id,b]));
+  for(const p of S.photos){
+    let b=blobs.get(p.id);
+    if(!b&&p.full){ // legacy record with inline blobs: move them to the blobs store, rebuilt from bytes
+      let orig=null;try{orig=p.orig?{w:p.orig.w,h:p.orig.h,hash:p.orig.hash,buf:p.orig.buf||await p.orig.full.arrayBuffer()}:null}catch(e){}
+      let full=p.full,thumb=p.thumb;try{full=await fresh(p.full);thumb=await fresh(p.thumb)}catch(e){}
+      b={id:p.id,full,thumb,orig};try{await DB.put('blobs',b)}catch(e){}
+      await DB.put('photos',meta(Object.assign(p,{hasOrig:!!b.orig})));
+    }
+    if(b){p.full=b.full;p.thumb=b.thumb;p.orig=b.orig||undefined;p.hasOrig=!!b.orig}
+  }
+  S.photos=S.photos.filter(p=>p.full);
   await seed();await seedQuick();await migrateGroups();
   S.photos.sort(byNewest);
 }
@@ -257,7 +270,7 @@ async function importFiles(files){
       const full=await toBlob(draw(im,2000),.86);
       const thumb=await toBlob(draw(im,320),.8);
       const p={id:uid(),name:f.name,added:f.lastModified||Date.now(),imported:Date.now(),w:im.naturalWidth,h:im.naturalHeight,full,thumb,hash:dhash(im),fav:false,tags:[]};
-      await DB.put('photos',p);S.photos.push(p);added.push(p);
+      await saveBlobs(p);await savePhoto(p);S.photos.push(p);added.push(p);
     }catch(e){fail++}
     showProgress(++n,list.length);
   }
@@ -275,11 +288,13 @@ function applyImplied(tags){
     if(itemById(it.groupId)&&!tags.some(k=>k.item===it.groupId))tags.push({item:it.groupId,sub:null})}
   return tags;
 }
-const savePhoto=p=>{applyImplied(p.tags);return DB.put('photos',p)};
+function meta(p){const {full,thumb,orig,...m}=p;m.hasOrig=!!orig;return m}
+const savePhoto=p=>{applyImplied(p.tags);return DB.put('photos',meta(p))};
+const saveBlobs=p=>DB.put('blobs',{id:p.id,full:p.full,thumb:p.thumb,orig:p.orig||null});
 const saveItem=i=>DB.put('items',i);
 const saveCat=c=>DB.put('cats',c);
 async function deletePhotos(ids){
-  for(const id of ids){await DB.del('photos',id);['t','f'].forEach(k=>{if(urls[k+id]){URL.revokeObjectURL(urls[k+id]);delete urls[k+id]}})}
+  for(const id of ids){await DB.del('photos',id);await DB.del('blobs',id);['t','f'].forEach(k=>{if(urls[k+id]){URL.revokeObjectURL(urls[k+id]);delete urls[k+id]}})}
   S.photos=S.photos.filter(p=>!ids.includes(p.id));
   for(const it of S.items){let ch=false;if(ids.includes(it.cover)){it.cover=null;ch=true}for(const s of it.subs)if(ids.includes(s.cover)){s.cover=null;ch=true}if(ch)await saveItem(it)}
 }
@@ -292,10 +307,10 @@ function nav(){
   const tab=(id,ic,label,on)=>`<button class="tab ${on?'on':''}" data-nav="${id}">${ic}${label}</button>`;
   return `<nav class="tabbar">
     ${tab('gallery',I.gal,'Gallery',cur==='gallery')}
-    ${p?tab('cat:'+p.id,I.person,esc(p.name),cur==='cat'&&S.catView===p.id):''}
+    ${p?tab('cat:'+p.id,I.person,'Library',cur==='cat'||cur==='item'):''}
     <button class="tab" data-nav="sort"><span class="fab">${I.sort}</span>Sort</button>
     ${tab('favorites',I.star,'Favorites',cur==='favorites')}
-    ${tab('more',I.more,'More',cur==='more'||cur==='cat'&&S.catView!==(p&&p.id))}
+    ${tab('more',I.more,'More',cur==='more'||cur==='manage'||cur==='dupes')}
   </nav>`;
 }
 function render(){
@@ -305,7 +320,7 @@ function render(){
 }
 function bind(){
   const app=$('#app');
-  app.querySelectorAll('[data-nav]').forEach(b=>b.onclick=()=>{const v=b.dataset.nav;if(v.startsWith('cat:'))go('cat',{catView:v.slice(4)});else if(v==='sort')startSort();else go(v)});
+  app.querySelectorAll('[data-nav]').forEach(b=>b.onclick=()=>{const v=b.dataset.nav;if(v.startsWith('cat:')){const id=v.slice(4);go('cat',{catView:(b.classList.contains('tab')&&S.catView&&catById(S.catView))?S.catView:id})}else if(v==='sort')startSort();else go(v)});
   app.querySelectorAll('[data-act]').forEach(b=>b.onclick=e=>actions[b.dataset.act]&&actions[b.dataset.act](b,e));
 }
 
@@ -318,7 +333,7 @@ function monthGrid(photos,selSet){
   for(const p of photos){const d=new Date(p.added);const k=d.toLocaleString(undefined,{month:'long',year:'numeric'});if(!groups.has(k))groups.set(k,[]);groups.get(k).push(p)}
   return [...groups].map(([k,ps])=>`<div class="month">${esc(k)}</div><div class="grid3">${ps.map(p=>tileHTML(p,selSet&&selSet.has(p.id))).join('')}</div>`).join('');
 }
-function coverHTML(id,fallbackText,color){const p=photoById(id);return p?`<img src="${thumbUrl(p)}" alt="" data-p="${p.id}" data-k="t">`:`<span style="color:#111114">${esc(fallbackText)}</span>`}
+function coverHTML(id,fallbackText,crop){const p=photoById(id);if(p&&crop&&crop.w>0&&crop.h>0)return `<span style="position:relative;display:block;width:100%;height:100%;overflow:hidden"><img src="${thumbUrl(p)}" alt="" data-p="${p.id}" data-k="t" style="position:absolute;left:${(-crop.x/crop.w*100).toFixed(3)}%;top:${(-crop.y/crop.h*100).toFixed(3)}%;width:${(100/crop.w).toFixed(3)}%;height:${(100/crop.h).toFixed(3)}%;object-fit:fill"></span>`;return p?`<img src="${thumbUrl(p)}" alt="" data-p="${p.id}" data-k="t">`:`<span style="color:#111114">${esc(fallbackText)}</span>`}
 
 /* ---------- Gallery ---------- */
 function gallery(){
@@ -351,11 +366,12 @@ function catView(){
     const g=new Map();its.forEach(i=>{const k=groupName(i)||'No '+(groupLabelOf(cat)||'group').toLowerCase();if(!g.has(k))g.set(k,[]);g.get(k).push(i)});
     body=[...g].map(([k,l])=>`<div class="month" style="padding-top:4px">${esc(k)}</div><div class="grid2" style="margin-bottom:16px">${l.map(i=>itemCard(i,cat)).join('')}</div>`).join('');
   } else body=`<div class="grid2">${its.map(i=>itemCard(i,cat,mode==='custom')).join('')}</div>`;
-  return `<div class="screen"><div class="head"><h1 class="title">${esc(cat.name)}</h1><button class="icon-btn acc" data-act="newItem" aria-label="New">${I.plus}</button></div>${seg}<div class="scroll">${body}</div>${nav()}</div>`;
+  const catChips=`<div class="chips">${enabledCats().map(c=>`<button class="pill ${c.id===cat.id?'on':''}" data-nav="cat:${c.id}">${esc(c.name)}</button>`).join('')}</div>`;
+  return `<div class="screen"><div class="head"><h1 class="title">${esc(cat.name)}</h1><button class="icon-btn acc" data-act="newItem" aria-label="New">${I.plus}</button></div>${catChips}${seg}<div class="scroll">${body}</div>${nav()}</div>`;
 }
 function itemCard(i,cat,reorder){
   const n=S.photos.filter(p=>p.tags.some(t=>t.item===i.id)).length;
-  return `<div style="display:flex;flex-direction:column;gap:6px;min-width:0"><button class="card" data-act="openItem" data-id="${i.id}"><div class="cov" style="background:${colorFor(i.id)}">${coverHTML(i.cover,i.name[0]||'?')}</div><div class="nm">${esc(i.name)}</div><div class="mt">${groupName(i)?esc(groupName(i))+' · ':''}${n} photo${n===1?'':'s'}${i.subs.length?' · '+i.subs.length+' '+esc(cat.subLabel.toLowerCase()):''}</div></button>${reorder?`<div style="display:flex;gap:6px"><button class="pill" style="height:30px;padding:0 10px" data-act="itemUp" data-id="${i.id}" aria-label="Move up">${I.up}</button><button class="pill" style="height:30px;padding:0 10px" data-act="itemDown" data-id="${i.id}" aria-label="Move down">${I.down}</button></div>`:''}</div>`;
+  return `<div style="display:flex;flex-direction:column;gap:6px;min-width:0"><button class="card" data-act="openItem" data-id="${i.id}"><div class="cov" style="background:${colorFor(i.id)}">${coverHTML(i.cover,i.name[0]||'?',i.coverCrop)}</div><div class="nm">${esc(i.name)}</div><div class="mt">${groupName(i)?esc(groupName(i))+' · ':''}${n} photo${n===1?'':'s'}${i.subs.length?' · '+i.subs.length+' '+esc(cat.subLabel.toLowerCase()):''}</div></button>${reorder?`<div style="display:flex;gap:6px"><button class="pill" style="height:30px;padding:0 10px" data-act="itemUp" data-id="${i.id}" aria-label="Move up">${I.up}</button><button class="pill" style="height:30px;padding:0 10px" data-act="itemDown" data-id="${i.id}" aria-label="Move down">${I.down}</button></div>`:''}</div>`;
 }
 
 /* ---------- Item detail ---------- */
@@ -368,13 +384,16 @@ function itemView(){
   const sub=subOf(it,S.subId);
   const folders=quickCats().map(c=>{const fs=sortedItems(c).map(q=>{const ps=bySub.filter(p=>p.tags.some(t=>t.item===q.id));return {q,ps}}).filter(x=>x.ps.length);return fs.length?`<div class="row-head" style="padding-top:4px"><div class="label" style="padding:0">${esc(c.name)}${sub?' · '+esc(sub.name):''}</div>${typeIt?`<button class="link" data-act="pickType" data-id="">Show all</button>`:''}</div><div class="grid2" style="margin-bottom:18px">${fs.map(({q,ps})=>`<button class="card" data-act="pickType" data-id="${q.id}" style="${S.typeId===q.id?'outline:2px solid var(--acc);outline-offset:4px;border-radius:16px':''}"><div class="cov" style="aspect-ratio:4/3;background:var(--sur3)">${coverHTML(ps[0].id,'')}</div><div class="nm">${esc(q.name)} <span style="color:var(--mut);font-weight:600">· ${ps.length}</span></div></button>`).join('')}</div>`:''}).join('');
   const crumbs=[it.name,sub&&sub.name,typeIt&&typeIt.name].filter(Boolean).join(' · ');
+  const childCats=S.cats.filter(c=>c.groupCat===cat.id&&c.enabled);
   return `<div class="screen"><div class="head"><button class="icon-btn" data-act="back" aria-label="Back">${I.back}</button><button class="icon-btn" data-act="editItem" aria-label="Edit">${I.edit}</button></div>
   <div class="scroll">
-   <div style="display:flex;align-items:center;gap:14px;padding:0 20px 18px"><div style="width:84px;height:84px;border-radius:42px;background:${colorFor(it.id)};overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:30px;font-weight:800;flex-shrink:0">${coverHTML(it.cover,it.name[0]||'?')}</div><div><div style="font-size:26px;font-weight:800;letter-spacing:-.02em">${esc(it.name)}</div><div style="font-size:13px;font-weight:600;color:var(--mut)">${groupName(it)?esc(groupName(it))+'<br>':''}${all.length} photo${all.length===1?'':'s'} · ${it.subs.length} ${esc(cat.subLabel.toLowerCase())}</div></div></div>
+   <div style="display:flex;align-items:center;gap:14px;padding:0 20px 18px"><div style="width:84px;height:84px;border-radius:42px;background:${colorFor(it.id)};overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:30px;font-weight:800;flex-shrink:0;position:relative">${coverHTML(it.cover,it.name[0]||'?',it.coverCrop)}</div><div><div style="font-size:26px;font-weight:800;letter-spacing:-.02em">${esc(it.name)}</div><div style="font-size:13px;font-weight:600;color:var(--mut)">${groupName(it)?esc(groupName(it))+'<br>':''}${all.length} photo${all.length===1?'':'s'} · ${it.subs.length} ${esc(cat.subLabel.toLowerCase())}</div></div></div>
+   ${it.cover?`<div style="padding:0 20px 14px;margin-top:-8px"><button class="link" data-act="adjustCover">Adjust cover</button></div>`:''}
    <div class="row-head"><div class="label" style="padding:0">${esc(cat.subLabel)}</div><button class="link" data-act="newSub">+ Add ${esc(cat.subLabel.toLowerCase().replace(/s$/,''))}</button></div>
-   ${it.subs.length?`<div class="grid2" style="margin-bottom:18px">${it.subs.map(s=>{const n=all.filter(p=>p.tags.some(t=>t.item===it.id&&t.sub===s.id)).length;return `<button class="card" data-act="pickSub" data-id="${s.id}" style="${S.subId===s.id?'outline:2px solid var(--acc);outline-offset:4px;border-radius:16px':''}"><div class="cov" style="aspect-ratio:4/3;background:var(--sur3)">${coverHTML(s.cover,'')}</div><div class="nm">${esc(s.name)} <span style="color:var(--mut);font-weight:600">· ${n}</span></div></button>`}).join('')}</div>`:''}
+   ${it.subs.length?`<div class="grid2" style="margin-bottom:18px">${it.subs.map(s=>{const n=all.filter(p=>p.tags.some(t=>t.item===it.id&&t.sub===s.id)).length;return `<button class="card" data-act="pickSub" data-id="${s.id}" style="${S.subId===s.id?'outline:2px solid var(--acc);outline-offset:4px;border-radius:16px':''}"><div class="cov" style="aspect-ratio:4/3;background:var(--sur3)">${coverHTML(s.cover,'',s.coverCrop)}</div><div class="nm">${esc(s.name)} <span style="color:var(--mut);font-weight:600">· ${n}</span></div></button>`}).join('')}</div>`:''}
+   ${childCats.map(cc=>{const kids=sortedItems(cc).filter(k=>k.groupId===it.id);return kids.length?`<div class="row-head"><div class="label" style="padding:0">${esc(cc.name)}</div><span style="font-size:12px;font-weight:600;color:var(--mut)">${kids.length}</span></div><div class="grid2" style="margin-bottom:18px">${kids.map(k=>itemCard(k,cc,false)).join('')}</div>`:''}).join('')}
    ${folders}
-   <div class="row-head"><div class="label" style="padding:0">${sub||typeIt?esc(crumbs):'All '+esc(it.name)+' photos'}</div>${sub||typeIt?`<button class="link" data-act="clearFilters">Show all</button>${sub?`<button class="link" style="margin-left:12px" data-act="editSub" data-id="${sub.id}">Edit</button>`:''}`:'<span style="font-size:12px;font-weight:600;color:var(--mut)">Newest first</span>'}</div>
+   <div class="row-head"><div class="label" style="padding:0">${sub||typeIt?esc(crumbs):'All '+esc(it.name)+' photos'}</div>${sub||typeIt?`<button class="link" data-act="clearFilters">Show all</button>${sub?`<button class="link" style="margin-left:12px" data-act="editSub" data-id="${sub.id}">Edit</button>${sub.cover?`<button class="link" style="margin-left:12px" data-act="adjustSubCover" data-id="${sub.id}">Adjust cover</button>`:''}`:''}`:'<span style="font-size:12px;font-weight:600;color:var(--mut)">Newest first</span>'}</div>
    ${shown.length?`<div class="grid3">${shown.map(p=>tileHTML(p,false)).join('')}</div>`:`<div class="empty">Nothing here yet. Use Sort to tag photos.</div>`}
   </div>${nav()}</div>`;
 }
@@ -405,8 +424,8 @@ function sortView(){
   if(!p)return `<div class="screen">${head}${chips}<div class="empty" style="flex:1">${S.sortQueue.length?'All done — every photo in this filter is sorted.':'Nothing matches this filter.'}<br>Pick another filter, or add more photos.</div>${nav()}</div>`;
   const cats=mainCats();const cat=catById(S.sortCat)||cats[0];const its=sortedItems(cat);const it=itemById(S.sortItem);
   const catRow=cats.length>1?`<div class="chips" style="padding-bottom:8px">${cats.map(c=>`<button class="pill ${c.id===cat.id?'acc':''}" data-act="sortCat" data-k="${c.id}">${esc(c.name)}</button>`).join('')}</div>`:'';
-  const itemRow=`<div class="row-head"><div class="label" style="padding:0">${esc(cat.name)}</div><button class="link" data-act="newItemSort">+ New</button></div><div class="hrow">${its.map(i=>{const on=it&&it.id===i.id;const tagged=S.draft.some(t=>t.item===i.id);return `<button class="av ${on?'on':''}" data-act="sortItem" data-id="${i.id}"><div class="c" style="background:${colorFor(i.id)}">${coverHTML(i.cover,i.name[0]||'?')}</div><div>${esc(i.name)}${tagged?' ✓':''}</div></button>`}).join('')||'<div class="note" style="padding:0">No items yet — tap + New.</div>'}</div>`;
-  const subRow=it?`<div class="row-head" style="padding-top:14px"><div class="label" style="padding:0">${esc(it.name)} · ${esc(cat.subLabel.toLowerCase())}</div><button class="link" data-act="newSubSort">+ New</button></div><div class="hrow" style="gap:10px">${[{id:null,name:'No '+cat.subLabel.toLowerCase().replace(/s$/,'')},...it.subs].map(s=>{const on=S.draft.some(t=>t.item===it.id&&(t.sub||null)===s.id);return `<button class="sq ${on?'on':''}" data-act="sortSub" data-id="${s.id||''}"><div class="c">${s.id?coverHTML(s.cover,''):'<span style="color:var(--mut)">—</span>'}</div><div>${esc(s.name)}${on?' ✓':''}</div></button>`}).join('')}</div>`:'';
+  const itemRow=`<div class="row-head"><div class="label" style="padding:0">${esc(cat.name)}</div><button class="link" data-act="newItemSort">+ New</button></div><div class="hrow">${its.map(i=>{const on=it&&it.id===i.id;const tagged=S.draft.some(t=>t.item===i.id);return `<button class="av ${on?'on':''}" data-act="sortItem" data-id="${i.id}"><div class="c" style="background:${colorFor(i.id)}">${coverHTML(i.cover,i.name[0]||'?',i.coverCrop)}</div><div>${esc(i.name)}${tagged?' ✓':''}</div></button>`}).join('')||'<div class="note" style="padding:0">No items yet — tap + New.</div>'}</div>`;
+  const subRow=it?`<div class="row-head" style="padding-top:14px"><div class="label" style="padding:0">${esc(it.name)} · ${esc(cat.subLabel.toLowerCase())}</div><button class="link" data-act="newSubSort">+ New</button></div><div class="hrow" style="gap:10px">${[{id:null,name:'No '+cat.subLabel.toLowerCase().replace(/s$/,'')},...it.subs].map(s=>{const on=S.draft.some(t=>t.item===it.id&&(t.sub||null)===s.id);return `<button class="sq ${on?'on':''}" data-act="sortSub" data-id="${s.id||''}"><div class="c">${s.id?coverHTML(s.cover,'',s.coverCrop):'<span style="color:var(--mut)">—</span>'}</div><div>${esc(s.name)}${on?' ✓':''}</div></button>`}).join('')}</div>`:'';
   const tags=`<div class="tags">${S.draft.map((t,i)=>{const l=tagLabel(t);const c=colorFor(t.item);return l?`<button class="tag" data-act="draftRm" data-i="${i}"><span class="dot" style="background:${c}"></span>${esc(l)}<span class="x">${I.x.replace(/18/g,'10')}</span></button>`:''}).join('')||'<span style="font-size:12px;font-weight:600;color:var(--mut);align-self:center">No tags yet — pick below</span>'}</div>`;
   return `<div class="screen">${head}${chips}<div class="scroll" style="padding-bottom:8px"><button class="stage" style="height:38vh;width:calc(100% - 40px)" data-act="openCur" aria-label="Open photo"><img src="${fullUrl(p)}" alt="" data-p="${p.id}" data-k="f"></button><div style="text-align:center;font-size:12px;font-weight:600;color:var(--mut);padding-top:8px">${esc(p.name)}</div>${tags}<div style="height:12px"></div>${catRow}${itemRow}${subRow}${quickRows(S.draft,'sortQuick')}</div>
   <div class="bar"><button class="btn" data-act="skip">Skip</button><button class="btn pri" data-act="saveNext">Save &amp; next</button></div></div>`;
@@ -470,7 +489,7 @@ function manageView(){
   <div class="chips">${cats.map(c=>`<button class="pill ${c.id===cat.id?'on':''}" data-act="manageCat" data-k="${c.id}">${esc(c.name)}</button>`).join('')}</div>
   <div class="scroll">
    <div class="row-head"><div class="label" style="padding:0">${esc(cat.name)}${cat.quick?' (quick toggles)':''}</div><button class="link" data-act="editCat" data-id="${cat.id}">Edit category</button></div>
-   <div class="list">${its.map(i=>{const n=S.photos.filter(p=>p.tags.some(t=>t.item===i.id)).length;return `<div class="li" style="flex-direction:column;align-items:stretch;gap:8px"><div style="display:flex;align-items:center;gap:10px"><div style="width:36px;height:36px;border-radius:18px;background:${colorFor(i.id)};overflow:hidden;display:flex;align-items:center;justify-content:center;font-weight:800;color:#111114;flex-shrink:0">${coverHTML(i.cover,i.name[0]||'?')}</div><div style="flex:1;min-width:0"><div class="t">${esc(i.name)}</div><div class="s">${groupName(i)?esc(groupName(i))+' · ':''}${n} photo${n===1?'':'s'}</div></div><button class="pill" style="height:32px;padding:0 10px" data-act="manageEdit" data-id="${i.id}">Rename</button><button class="pill" style="height:32px;padding:0 10px;color:var(--acc2)" data-act="manageDel" data-id="${i.id}">Delete</button></div>${cat.quick?'':`<div style="display:flex;flex-wrap:wrap;gap:6px;padding-left:46px">${i.subs.map(sb=>`<button class="pill" style="height:30px;padding:0 10px" data-act="manageSub" data-id="${i.id}" data-sub="${sb.id}">${esc(sb.name)} ${I.edit.replace(/18/g,'12')}</button>`).join('')}<button class="pill" style="height:30px;padding:0 10px;color:var(--acc2)" data-act="manageSubNew" data-id="${i.id}">+ ${esc(cat.subLabel.toLowerCase().replace(/s$/,''))}</button></div>`}</div>`}).join('')||'<div class="empty">Nothing here yet.</div>'}</div>
+   <div class="list">${its.map(i=>{const n=S.photos.filter(p=>p.tags.some(t=>t.item===i.id)).length;return `<div class="li" style="flex-direction:column;align-items:stretch;gap:8px"><div style="display:flex;align-items:center;gap:10px"><div style="width:36px;height:36px;border-radius:18px;background:${colorFor(i.id)};overflow:hidden;display:flex;align-items:center;justify-content:center;font-weight:800;color:#111114;flex-shrink:0">${coverHTML(i.cover,i.name[0]||'?',i.coverCrop)}</div><div style="flex:1;min-width:0"><div class="t">${esc(i.name)}</div><div class="s">${groupName(i)?esc(groupName(i))+' · ':''}${n} photo${n===1?'':'s'}</div></div><button class="pill" style="height:32px;padding:0 10px" data-act="manageEdit" data-id="${i.id}">Rename</button><button class="pill" style="height:32px;padding:0 10px;color:var(--acc2)" data-act="manageDel" data-id="${i.id}">Delete</button></div>${cat.quick?'':`<div style="display:flex;flex-wrap:wrap;gap:6px;padding-left:46px">${i.subs.map(sb=>`<button class="pill" style="height:30px;padding:0 10px" data-act="manageSub" data-id="${i.id}" data-sub="${sb.id}">${esc(sb.name)} ${I.edit.replace(/18/g,'12')}</button>`).join('')}<button class="pill" style="height:30px;padding:0 10px;color:var(--acc2)" data-act="manageSubNew" data-id="${i.id}">+ ${esc(cat.subLabel.toLowerCase().replace(/s$/,''))}</button></div>`}</div>`}).join('')||'<div class="empty">Nothing here yet.</div>'}</div>
    <div style="padding:10px 20px 0"><button class="btn" style="width:100%;border:1px dashed var(--sur4);background:none;color:var(--acc2)" data-act="manageNew">${I.plus.replace(/20/g,'18')}New ${esc(cat.name.toLowerCase().replace(/s$/,''))}</button></div>
    ${g?`<div class="note">Deleting a ${esc(g.name.toLowerCase().replace(/s$/,''))} also deletes the ${esc(cat.name.toLowerCase())} that belong to it.</div>`:''}
   </div>${nav()}</div>`;
@@ -521,8 +540,8 @@ function tagSheet(title,initial,onDone){
     const cats=mainCats();const cat=catById(catId)||cats[0];catId=cat.id;const its=sortedItems(cat);const it=itemById(itemId);
     $('#tagBody').innerHTML=`<div class="tags" style="justify-content:flex-start">${draft.map((t,i)=>{const l=tagLabel(t);return l?`<button class="tag" data-rm="${i}"><span class="dot" style="background:${colorFor(t.item)}"></span>${esc(l)}<span class="x">${I.x.replace(/18/g,'10')}</span></button>`:''}).join('')||'<span style="font-size:12px;font-weight:600;color:var(--mut)">No tags yet</span>'}</div><div style="height:12px"></div>
     ${cats.length>1?`<div class="chips" style="padding-bottom:8px">${cats.map(c=>`<button class="pill ${c.id===cat.id?'acc':''}" data-cat="${c.id}">${esc(c.name)}</button>`).join('')}</div>`:''}
-    <div class="label">${esc(cat.name)}</div><div class="hrow">${its.map(i=>`<button class="av ${it&&it.id===i.id?'on':''}" data-item="${i.id}"><div class="c" style="background:${colorFor(i.id)}">${coverHTML(i.cover,i.name[0]||'?')}</div><div>${esc(i.name)}${draft.some(t=>t.item===i.id)?' ✓':''}</div></button>`).join('')||'<div class="note" style="padding:0">No items in this category yet.</div>'}</div>
-    ${it?`<div class="label" style="padding-top:14px">${esc(it.name)} · ${esc(cat.subLabel.toLowerCase())}</div><div class="hrow" style="gap:10px">${[{id:null,name:'No '+cat.subLabel.toLowerCase().replace(/s$/,'')},...it.subs].map(s=>{const on=draft.some(t=>t.item===it.id&&(t.sub||null)===s.id);return `<button class="sq ${on?'on':''}" data-sub="${s.id||''}"><div class="c">${s.id?coverHTML(s.cover,''):'<span style="color:var(--mut)">—</span>'}</div><div>${esc(s.name)}${on?' ✓':''}</div></button>`}).join('')}</div>`:''}
+    <div class="label">${esc(cat.name)}</div><div class="hrow">${its.map(i=>`<button class="av ${it&&it.id===i.id?'on':''}" data-item="${i.id}"><div class="c" style="background:${colorFor(i.id)}">${coverHTML(i.cover,i.name[0]||'?',i.coverCrop)}</div><div>${esc(i.name)}${draft.some(t=>t.item===i.id)?' ✓':''}</div></button>`).join('')||'<div class="note" style="padding:0">No items in this category yet.</div>'}</div>
+    ${it?`<div class="label" style="padding-top:14px">${esc(it.name)} · ${esc(cat.subLabel.toLowerCase())}</div><div class="hrow" style="gap:10px">${[{id:null,name:'No '+cat.subLabel.toLowerCase().replace(/s$/,'')},...it.subs].map(s=>{const on=draft.some(t=>t.item===it.id&&(t.sub||null)===s.id);return `<button class="sq ${on?'on':''}" data-sub="${s.id||''}"><div class="c">${s.id?coverHTML(s.cover,'',s.coverCrop):'<span style="color:var(--mut)">—</span>'}</div><div>${esc(s.name)}${on?' ✓':''}</div></button>`}).join('')}</div>`:''}
     ${quickCats().map(c=>{const qs=sortedItems(c);return qs.length?`<div class="label" style="padding-top:14px">${esc(c.name)}</div><div class="chips" style="padding-bottom:0">${qs.map(i=>{const on=draft.some(t=>t.item===i.id);return `<button class="pill ${on?'acc':''}" data-quick="${i.id}">${esc(i.name)}${on?' ✓':''}</button>`}).join('')}</div>`:''}).join('')}
     <div style="padding:16px 20px 0"><button class="btn pri" style="width:100%" data-done>Apply</button></div>`;
     const B=$('#tagBody');
@@ -550,17 +569,18 @@ function openViewer(id,list){
    attachZoom($('#zoomArea'),$('#zoomImg'),list.length>1?step:null);
    L.onkeydown=e=>{if(e.key==='ArrowRight')step(1);else if(e.key==='ArrowLeft')step(-1);else if(e.key==='Escape'){closeSheet();render()}};L.tabIndex=-1;L.focus();
    L.querySelector('[data-v="edit"]').onclick=()=>openEditor(p,paint);
-   const rv=L.querySelector('[data-v="revert"]');if(rv)rv.onclick=async()=>{if(!confirm('Restore the original photo as imported? Tags stay.'))return;const o=p.orig;let full;try{const buf=o.buf||await o.full.arrayBuffer();if(!buf||!buf.byteLength)throw 0;full=new Blob([buf],{type:'image/jpeg'});const im=await loadImage(full);const thumb=await toBlob(draw(im,320),.8);Object.assign(p,{full,thumb,w:o.w,h:o.h,hash:o.hash})}catch(e){toast('Original could not be read on this device');return}delete p.orig;['t','f'].forEach(k=>{if(urls[k+p.id]){URL.revokeObjectURL(urls[k+p.id]);delete urls[k+p.id]}});await savePhoto(p);toast('Original restored');paint()};
+   const rv=L.querySelector('[data-v="revert"]');if(rv)rv.onclick=async()=>{if(!confirm('Restore the original photo as imported? Tags stay.'))return;const o=p.orig;let full;try{const buf=o.buf||await o.full.arrayBuffer();if(!buf||!buf.byteLength)throw 0;full=new Blob([buf],{type:'image/jpeg'});const im=await loadImage(full);const thumb=await toBlob(draw(im,320),.8);Object.assign(p,{full,thumb,w:o.w,h:o.h,hash:o.hash})}catch(e){toast('Original could not be read on this device');return}delete p.orig;['t','f'].forEach(k=>{if(urls[k+p.id]){URL.revokeObjectURL(urls[k+p.id]);delete urls[k+p.id]}});await saveBlobs(p);await savePhoto(p);toast('Original restored');paint()};
    L.querySelector('[data-v="tags"]').onclick=()=>tagSheet('Tags',p.tags,async d=>{p.tags=d;await savePhoto(p);paint()});
    L.querySelector('[data-v="cover"]').onclick=()=>{
-     const opts=[];for(const t of p.tags){const it=itemById(t.item);if(!it)continue;if(!opts.some(o=>o.k==='i'+it.id))opts.push({k:'i'+it.id,l:it.name+' (character cover)',fn:async()=>{it.cover=p.id;await saveItem(it)}});const sb=subOf(it,t.sub);if(sb)opts.push({k:'s'+sb.id,l:it.name+' · '+sb.name,fn:async()=>{sb.cover=p.id;await saveItem(it)}})}
-     sheet('Set as cover for',`<div class="list">${opts.map((o,i)=>`<button class="li" data-o="${i}"><div class="t">${esc(o.l)}</div>${I.chev}</button>`).join('')}</div>`,el=>el.querySelectorAll('[data-o]').forEach(b=>b.onclick=async()=>{await opts[+b.dataset.o].fn();toast('Cover updated');paint()}));
+     const opts=[];for(const t of p.tags){const it=itemById(t.item);if(!it)continue;const cn=catById(it.cat).name.toLowerCase().replace(/s$/,'');if(!opts.some(o=>o.k==='i'+it.id))opts.push({k:'i'+it.id,l:it.name+' ('+cn+' cover)',ratio:1,fn:async crop=>{it.cover=p.id;it.coverCrop=crop;await saveItem(it)}});const sb=subOf(it,t.sub);if(sb)opts.push({k:'s'+sb.id,l:it.name+' · '+sb.name,ratio:4/3,fn:async crop=>{sb.cover=p.id;sb.coverCrop=crop;await saveItem(it)}})}
+     sheet('Set as cover for',`<div class="list">${opts.map((o,i)=>`<button class="li" data-o="${i}"><div class="t">${esc(o.l)}</div>${I.chev}</button>`).join('')}</div>`,el=>el.querySelectorAll('[data-o]').forEach(b=>b.onclick=()=>{const o=opts[+b.dataset.o];closeSheet();pickCover(p,o.ratio,null,async crop=>{await o.fn(crop);toast('Cover updated');paint()},paint)}));
    };
    L.querySelector('[data-v="del"]').onclick=async()=>{if(!confirm('Delete this photo from the app?'))return;const i=list.indexOf(id);await deletePhotos([p.id]);list=list.filter(x=>x!==p.id);if(!list.length){closeSheet();render();return}id=list[Math.min(i,list.length-1)];paint()};
   };
   paint();
 }
 
+function pickCover(p,ratio,crop,onPick,onCancel){openEditor(p,onCancel||(()=>render()),{pick:{ratio,crop,onPick}})}
 /* ---------- export / import ---------- */
 function dataJSON(){return {version:1,exported:new Date().toISOString(),cats:S.cats,items:S.items,photos:S.photos.map(p=>({id:p.id,name:p.name,added:p.added,imported:p.imported,w:p.w,h:p.h,hash:p.hash,fav:p.fav,tags:p.tags,file:'photos/'+p.id+'.jpg',orig:p.orig?{w:p.orig.w,h:p.orig.h,hash:p.orig.hash,file:'originals/'+p.id+'.jpg'}:null}))}}
 async function buildZip(photos,withData){
@@ -582,7 +602,7 @@ async function importZip(file){
     const d=JSON.parse(await dj.async('string'));let n=0,t=d.photos.length;
     for(const c of d.cats)if(!catById(c.id)){await saveCat(c);S.cats.push(c)}
     for(const i of d.items){const ex=itemById(i.id);if(!ex){await saveItem(i);S.items.push(i)}}
-    for(const q of d.photos){showProgress(++n,t);if(photoById(q.id))continue;const zf=z.file(q.file);if(!zf)continue;const full=await zf.async('blob');const im=await loadImage(full);const thumb=await toBlob(draw(im,320),.8);const p={...q,full:new Blob([full],{type:'image/jpeg'}),thumb};delete p.file;if(q.orig){const of=z.file(q.orig.file);p.orig=of?{w:q.orig.w,h:q.orig.h,hash:q.orig.hash,buf:await of.async('arraybuffer')}:null;if(!p.orig)delete p.orig}await DB.put('photos',p);S.photos.push(p)}
+    for(const q of d.photos){showProgress(++n,t);if(photoById(q.id))continue;const zf=z.file(q.file);if(!zf)continue;const full=await zf.async('blob');const im=await loadImage(full);const thumb=await toBlob(draw(im,320),.8);const p={...q,full:new Blob([full],{type:'image/jpeg'}),thumb};delete p.file;if(q.orig){const of=z.file(q.orig.file);p.orig=of?{w:q.orig.w,h:q.orig.h,hash:q.orig.hash,buf:await of.async('arraybuffer')}:null;if(!p.orig)delete p.orig}await saveBlobs(p);await savePhoto(p);S.photos.push(p)}
     S.photos.sort(byNewest);hideProgress();toast('Backup imported');render();
   }catch(e){hideProgress();toast('Could not read that file')}
 }
@@ -600,13 +620,15 @@ const actions={
   selDelete:async()=>{if(!confirm(`Delete ${S.select.size} photos from the app?`))return;await deletePhotos([...S.select]);S.select=null;render()},
   catSort:b=>{S.catSort[S.catView]=b.dataset.k;render()},
   newItem:()=>newItemSheet(S.catView),
-  openItem:b=>{S.history.push({view:S.view,catView:S.catView});go('item',{itemId:b.dataset.id,subId:null,typeId:null})},
+  openItem:b=>{S.history.push({view:S.view,catView:S.catView,itemId:S.itemId,subId:S.subId,typeId:S.typeId});go('item',{itemId:b.dataset.id,subId:null,typeId:null})},
   itemUp:b=>moveItem(b.dataset.id,-1),itemDown:b=>moveItem(b.dataset.id,1),
-  back:()=>{const h=S.history.pop();S.dupePairs=null;if(h)go(h.view,{catView:h.catView});else go('gallery')},
+  back:()=>{const h=S.history.pop();S.dupePairs=null;if(h)go(h.view,{catView:h.catView,itemId:h.itemId,subId:h.subId||null,typeId:h.typeId||null});else go('gallery')},
   editItem:()=>{const it=itemById(S.itemId);const cat=catById(it.cat);itemForm(cat,it)},
   newSub:()=>subForm(itemById(S.itemId)),
   pickSub:b=>{S.subId=b.dataset.id||null;render()},
   pickType:b=>{S.typeId=b.dataset.id||null;render()},
+  adjustCover:()=>{const it=itemById(S.itemId);const p=photoById(it.cover);if(!p)return;pickCover(p,1,it.coverCrop,async crop=>{it.coverCrop=crop;await saveItem(it);render()})},
+  adjustSubCover:b=>{const it=itemById(S.itemId);const sb=subOf(it,b.dataset.id);const p=photoById(sb.cover);if(!p)return;pickCover(p,4/3,sb.coverCrop,async crop=>{sb.coverCrop=crop;await saveItem(it);render()})},
   clearFilters:()=>{S.subId=null;S.typeId=null;render()},
   editSub:b=>subForm(itemById(S.itemId),subOf(itemById(S.itemId),b.dataset.id)),
   sortFilter:b=>startSort(b.dataset.k),
@@ -647,7 +669,7 @@ const actions={
   dupeAll:async()=>{if(!confirm(`Remove ${S.dupePairs.length} duplicate photos?`))return;for(const x of S.dupePairs)await mergeRemove(x.keep,x.rm);S.dupePairs=[];render()},
   exportAll:async()=>{if(!S.photos.length){toast('Nothing to export');return}toast('Preparing backup…');const blob=await buildZip(S.photos,true);shareOrDownload(blob,'photo-sorter-backup-'+new Date().toISOString().slice(0,10)+'.zip')},
   importZip:()=>$('#zipPicker').click(),
-  wipe:async()=>{if(!confirm('Delete every photo, character and tag in this app? Export a backup first if you want to keep them.'))return;if(!confirm('Really delete everything?'))return;await DB.clear('photos');await DB.clear('items');await DB.clear('cats');S.photos=[];S.items=[];S.cats=[];await seed();go('gallery')},
+  wipe:async()=>{if(!confirm('Delete every photo, character and tag in this app? Export a backup first if you want to keep them.'))return;if(!confirm('Really delete everything?'))return;await DB.clear('photos');await DB.clear('blobs');await DB.clear('items');await DB.clear('cats');S.photos=[];S.items=[];S.cats=[];await seed();go('gallery')},
 };
 function newItemSheet(catId,after){const cat=catById(catId);itemForm(cat,null,after)}
 function itemForm(cat,it,after){
@@ -698,7 +720,7 @@ document.addEventListener('error',async e=>{
   const img=e.target;if(!(img instanceof HTMLImageElement)||!img.dataset.p)return;
   const id=img.dataset.p,k=img.dataset.k,tries=+(img.dataset.retry||0);if(tries>=2)return;img.dataset.retry=tries+1;
   try{
-    const rec=await DB.get('photos',id);if(!rec)return;const key=k==='f'?'full':'thumb';
+    const rec=await DB.get('blobs',id);if(!rec)return;const key=k==='f'?'full':'thumb';
     const b=await fresh(rec[key]);const p=photoById(id);if(p)p[key]=b;
     const uk=k+id;if(urls[uk]){URL.revokeObjectURL(urls[uk]);delete urls[uk]}urls[uk]=URL.createObjectURL(b);
     img.src=urls[uk];
@@ -730,14 +752,14 @@ function attachZoom(area,img,onSwipe){
 }
 
 /* ---------- crop / rotate editor ---------- */
-async function openEditor(p,after){
-  p.full=await fresh(p.full);const im=await loadImage(p.full);
-  let rot=0,ratio=null;let crop={x:0,y:0,w:1,h:1}; // fractions of the rotated image
+async function openEditor(p,after,opts){
+  const pick=opts&&opts.pick;const im=await loadImage(p.full);
+  let rot=0,ratio=pick?pick.ratio:null;let crop=pick&&pick.crop?{...pick.crop}:{x:0,y:0,w:1,h:1}; // fractions of the rotated image
   const L=$('#layer');
-  L.innerHTML=`<div class="editor"><div class="eh"><button class="icon-btn" data-e="cancel" aria-label="Cancel">${I.x}</button><div style="font-size:16px;font-weight:800">Edit</div><button class="pill on" data-e="save">Save</button></div>
+  L.innerHTML=`<div class="editor"><div class="eh"><button class="icon-btn" data-e="cancel" aria-label="Cancel">${I.x}</button><div style="font-size:16px;font-weight:800">${pick?"Cover":"Edit"}</div><button class="pill on" data-e="save">${pick?"Use":"Save"}</button></div>
   <div style="flex:1;min-height:0;display:flex;align-items:center;justify-content:center"><canvas id="ecv"></canvas></div>
-  <div class="chips" style="padding-top:10px;justify-content:center">${[['free','Free'],['1','1:1'],['0.8','4:5'],['0.5625','9:16'],['1.7778','16:9']].map(([v,l])=>`<button class="pill" data-r="${v}">${l}</button>`).join('')}</div>
-  <div class="bar" style="background:none"><button class="btn" data-e="rotl">Rotate ⟲</button><button class="btn" data-e="rotr">Rotate ⟳</button><button class="btn" data-e="reset">Reset</button><button class="btn" data-e="copy">Save as copy</button></div></div>`;
+  ${pick?`<div class="note" style="text-align:center;padding-bottom:10px">Drag the box to choose what shows on the cover.</div>`:`<div class="chips" style="padding-top:10px;justify-content:center">${[['free','Free'],['1','1:1'],['0.8','4:5'],['0.5625','9:16'],['1.7778','16:9']].map(([v,l])=>`<button class="pill" data-r="${v}">${l}</button>`).join('')}</div>
+  <div class="bar" style="background:none"><button class="btn" data-e="rotl">Rotate ⟲</button><button class="btn" data-e="rotr">Rotate ⟳</button><button class="btn" data-e="reset">Reset</button><button class="btn" data-e="copy">Save as copy</button></div>`}</div>`;
   const cv=$('#ecv'),ctx=cv.getContext('2d');
   const rw=()=>rot%180?im.naturalHeight:im.naturalWidth,rh=()=>rot%180?im.naturalWidth:im.naturalHeight;
   let box={x:0,y:0,w:0,h:0,s:1};
@@ -761,10 +783,12 @@ async function openEditor(p,after){
       if(ratio){const iw=rw(),ih=rh();let w=n.w*iw,h=w/ratio;if(n.y+h/ih>1||(!bottom&&c.y+c.h-h/ih<0)){h=bottom?(1-n.y)*ih:(c.y+c.h)*ih;w=h*ratio}n.w=w/iw;n.h=h/ih;if(!right)n.x=c.x+c.w-n.w;if(!bottom)n.y=c.y+c.h-n.h;if(n.x<0||n.x+n.w>1){return}}}
     crop=n;draw()});
   const end=()=>drag=null;cv.addEventListener('pointerup',end);cv.addEventListener('pointercancel',end);
+  if(pick){if(!pick.crop){crop={x:0,y:0,w:1,h:1};applyRatio();crop.x=(1-crop.w)/2;crop.y=(1-crop.h)/2}}
   L.querySelectorAll('[data-r]').forEach(b=>b.onclick=()=>{L.querySelectorAll('[data-r]').forEach(x=>x.classList.remove('on'));b.classList.add('on');ratio=b.dataset.r==='free'?null:+b.dataset.r;applyRatio();draw()});
-  L.querySelector('[data-e="rotl"]').onclick=()=>{rot=(rot+270)%360;crop={x:0,y:0,w:1,h:1};layout()};
-  L.querySelector('[data-e="rotr"]').onclick=()=>{rot=(rot+90)%360;crop={x:0,y:0,w:1,h:1};layout()};
-  L.querySelector('[data-e="reset"]').onclick=()=>{rot=0;ratio=null;crop={x:0,y:0,w:1,h:1};L.querySelectorAll('[data-r]').forEach(x=>x.classList.remove('on'));layout()};
+  const on=(sel,fn)=>{const el=L.querySelector(sel);if(el)el.onclick=fn};
+  on('[data-e="rotl"]',()=>{rot=(rot+270)%360;crop={x:0,y:0,w:1,h:1};layout()});
+  on('[data-e="rotr"]',()=>{rot=(rot+90)%360;crop={x:0,y:0,w:1,h:1};layout()});
+  on('[data-e="reset"]',()=>{rot=0;ratio=null;crop={x:0,y:0,w:1,h:1};L.querySelectorAll('[data-r]').forEach(x=>x.classList.remove('on'));layout()});
   L.querySelector('[data-e="cancel"]').onclick=()=>{L.innerHTML='';after()};
   async function commit(asCopy){
     const W=Math.round(crop.w*rw()),H=Math.round(crop.h*rh());
@@ -779,12 +803,12 @@ async function openEditor(p,after){
     target.orig=orig;
     Object.assign(target,{full:fullB,thumb:thumbB,w:im2.naturalWidth,h:im2.naturalHeight,hash:dhash(im2)});
     ['t','f'].forEach(k=>{if(urls[k+target.id]){URL.revokeObjectURL(urls[k+target.id]);delete urls[k+target.id]}});
-    await savePhoto(target);if(asCopy){S.photos.push(target);S.photos.sort(byNewest)}
+    await saveBlobs(target);await savePhoto(target);if(asCopy){S.photos.push(target);S.photos.sort(byNewest)}
     L.innerHTML='';toast(asCopy?'Saved as copy':'Photo updated');if(asCopy){render();openViewer(target.id)}else after();
   }
   const draw2=draw_;
-  L.querySelector('[data-e="save"]').onclick=()=>commit(false);
-  L.querySelector('[data-e="copy"]').onclick=()=>commit(true);
+  on('[data-e="save"]',()=>{if(pick){L.innerHTML='';pick.onPick({x:crop.x,y:crop.y,w:crop.w,h:crop.h})}else commit(false)});
+  on('[data-e="copy"]',()=>commit(true));
   requestAnimationFrame(layout);
 }
 const draw_=(im,max)=>draw(im,max);
