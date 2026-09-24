@@ -113,7 +113,9 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--acc);outline-offset
 .sheet{background:var(--bg2);border-radius:22px 22px 0 0;width:100%;max-height:88%;display:flex;flex-direction:column;padding-bottom:var(--sab)}
 .sheet .h{display:flex;align-items:center;justify-content:space-between;padding:16px 20px 8px}
 .sheet .h h2{margin:0;font-size:18px;font-weight:800}
-.sheet .b{overflow-y:auto;padding:8px 0 12px}
+.sheet .b{overflow-y:auto;padding:8px 0 12px;flex:1;min-height:0}
+.sheet .sh{flex-shrink:0;padding-bottom:4px}
+.sheet .sf{flex-shrink:0;padding:10px 20px 6px;display:flex;gap:8px;border-top:1px solid var(--line);background:var(--bg2)}
 .viewer{position:fixed;inset:0;background:#000;z-index:30;display:flex;flex-direction:column}
 .viewer .vh{display:flex;justify-content:space-between;padding:calc(var(--sat) + 10px) 14px 8px}
 .viewer .vi{flex:1;display:flex;align-items:center;justify-content:center;min-height:0}
@@ -763,8 +765,8 @@ async function mergeRemove(keep,rm){
 }
 
 /* ---------- sheets & dialogs ---------- */
-function sheet(title,bodyHTML,onBind){
-  const L=$('#layer');L.innerHTML=`<div class="sheet-bg" data-close><div class="sheet"><div class="h"><h2>${title}</h2><button class="icon-btn" data-close aria-label="Close">${I.x}</button></div><div class="b">${bodyHTML}</div></div></div>`;
+function sheet(title,bodyHTML,onBind,opts={}){
+  const L=$('#layer');L.innerHTML=`<div class="sheet-bg" data-close><div class="sheet"><div class="h"><h2>${title}</h2><button class="icon-btn" data-close aria-label="Close">${I.x}</button></div>${opts.sub?`<div class="sh">${opts.sub}</div>`:''}<div class="b">${bodyHTML}</div>${opts.foot?`<div class="sf">${opts.foot}</div>`:''}</div></div>`;
   L.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',e=>{if(b.classList.contains('sheet-bg')?e.target===b:true)closeSheet()}));
   onBind&&onBind(L.firstElementChild);hydrate(L);
 }
@@ -802,22 +804,22 @@ function tagSheet(title,initial,onDone,st){
     $('#tagBody').innerHTML=`<div class="tags" style="justify-content:flex-start">${draft.map((t,i)=>{const l=tagLabel(t);return l?`<button class="tag" data-rm="${i}"><span class="dot" style="background:${colorFor(t.item)}"></span>${esc(l)}<span class="x">${I.x.replace(/18/g,'10')}</span></button>`:''}).join('')||'<span style="font-size:12px;font-weight:600;color:var(--mut)">No tags yet</span>'}</div><div style="height:12px"></div>
     ${cats.length>1?`<div class="chips" style="padding-bottom:8px">${cats.map(c=>`<button class="pill ${c.id===cat.id?'acc':''}" data-cat="${c.id}">${esc(c.name)}</button>`).join('')}</div>`:''}
     <div class="row-head"><div class="label" style="padding:0">${esc(cat.name)}</div><button class="link" data-newitem>+ New ${esc(singular(cat.name.toLowerCase()))}</button></div><div class="hrow">${its.map(i=>`<button class="av ${it&&it.id===i.id?'on':''}" data-item="${i.id}"><div class="c" style="background:${colorFor(i.id)}">${coverHTML(i.cover,i.name[0]||'?',i.coverCrop)}</div><div>${esc(i.name)}${draft.some(t=>t.item===i.id)?' ✓':''}</div></button>`).join('')||'<div class="note" style="padding:0">No items in this category yet.</div>'}</div>
-    ${it?`<div class="row-head" style="padding-top:14px"><div class="label" style="padding:0">${esc(it.name)} · ${esc(cat.subLabel.toLowerCase())}</div><button class="link" data-newsub>+ New ${esc(singular(cat.subLabel.toLowerCase()))}</button></div><div class="hrow" style="gap:10px">${[{id:null,name:'No '+singular(cat.subLabel.toLowerCase())},...it.subs].map(s=>{const on=draft.some(t=>t.item===it.id&&(t.sub||null)===s.id);return `<button class="sq ${on?'on':''}" data-sub="${s.id||''}"><div class="c">${s.id?coverHTML(s.cover,'',s.coverCrop):'<span style="color:var(--mut)">—</span>'}</div><div>${esc(s.name)}${on?' ✓':''}</div></button>`}).join('')}</div>`:''}
+    ${[...new Set([...(it?[it.id]:[]),...draft.map(t=>t.item).filter(id=>{const x=itemById(id);return x&&x.cat===cat.id&&x.subs.length})])].map(itemById).map(x=>`<div class="row-head" style="padding-top:14px"><div class="label" style="padding:0">${esc(x.name)} · ${esc(cat.subLabel.toLowerCase())}</div><button class="link" data-newsub="${x.id}">+ New ${esc(singular(cat.subLabel.toLowerCase()))}</button></div><div class="hrow" style="gap:10px">${[{id:null,name:'No '+singular(cat.subLabel.toLowerCase())},...x.subs].map(s=>{const on=draft.some(t=>t.item===x.id&&(t.sub||null)===s.id);return `<button class="sq ${on?'on':''}" data-sub="${s.id||''}" data-of="${x.id}"><div class="c">${s.id?coverHTML(s.cover,'',s.coverCrop):'<span style="color:var(--mut)">—</span>'}</div><div>${esc(s.name)}${on?' ✓':''}</div></button>`}).join('')}</div>`).join('')}
     ${quickCats().map(c=>{const qs=sortedItems(c);return `<div class="row-head" style="padding-top:14px"><div class="label" style="padding:0">${esc(c.name)}</div><button class="link" data-newquick="${c.id}">+ New</button></div><div class="chips" style="padding-bottom:0">${qs.map(i=>{const on=draft.some(t=>t.item===i.id);return `<button class="pill ${on?'acc':''}" data-quick="${i.id}">${esc(i.name)}${on?' ✓':''}</button>`}).join('')||'<span class="note" style="padding:0">None yet</span>'}</div>`}).join('')}
-    <div style="padding:16px 20px 0"><button class="btn pri" style="width:100%" data-done>Apply</button></div>`;
+`;
     const B=$('#tagBody');
     B.querySelectorAll('[data-quick]').forEach(b=>b.onclick=()=>{const id=b.dataset.quick;const k=draft.findIndex(t=>t.item===id);if(k>=0)draft.splice(k,1);else draft.push({item:id,sub:null});paint()});
     B.querySelectorAll('[data-rm]').forEach(b=>b.onclick=e=>{const t=draft[+b.dataset.rm];if(e.target.closest('.x')){draft.splice(+b.dataset.rm,1);paint();return}const it=itemById(t.item);if(it&&!catById(it.cat).quick){catId=it.cat;itemId=it.id;paint()}});
     B.querySelectorAll('[data-cat]').forEach(b=>b.onclick=()=>{catId=b.dataset.cat;itemId=null;paint()});
     B.querySelectorAll('[data-item]').forEach(b=>b.onclick=()=>{const i=itemById(b.dataset.item);if(itemId===i.id&&i.subs.length){itemId=null}else{itemId=i.id;if(!i.subs.length){const k=draft.findIndex(t=>t.item===i.id);if(k>=0)draft.splice(k,1);else draft.push({item:i.id,sub:null})}}paint()});
-    B.querySelectorAll('[data-sub]').forEach(b=>b.onclick=()=>{const sub=b.dataset.sub||null;const k=draft.findIndex(t=>t.item===itemId&&(t.sub||null)===sub);if(k>=0)draft.splice(k,1);else addTag(draft,itemId,sub);paint()});
-    B.querySelector('[data-done]').onclick=()=>{closeSheet();draft.forEach(t=>touchRecent(t.item));onDone(draft)};
+    B.querySelectorAll('[data-sub]').forEach(b=>b.onclick=()=>{const sub=b.dataset.sub||null;const of=b.dataset.of;const k=draft.findIndex(t=>t.item===of&&(t.sub||null)===sub);if(k>=0)draft.splice(k,1);else addTag(draft,of,sub);paint()});
+    $('#layer').querySelector('[data-done]').onclick=()=>{closeSheet();draft.forEach(t=>touchRecent(t.item));onDone(draft)};
     B.querySelector('[data-newitem]').onclick=()=>{closeSheet();itemForm(cat,null,ni=>{if(ni.subs.length)itemId=ni.id;else{addTag(draft,ni.id,null);itemId=null}reopen()},()=>reopen())};
-    const ns=B.querySelector('[data-newsub]');if(ns)ns.onclick=()=>{closeSheet();subForm(it,null,sb=>{addTag(draft,it.id,sb.id);reopen()},()=>reopen())};
+    B.querySelectorAll('[data-newsub]').forEach(ns=>ns.onclick=()=>{const x=itemById(ns.dataset.newsub);closeSheet();subForm(x,null,sb=>{addTag(draft,x.id,sb.id);itemId=x.id;reopen()},()=>reopen())});
     B.querySelectorAll('[data-newquick]').forEach(b=>b.onclick=()=>{closeSheet();itemForm(catById(b.dataset.newquick),null,ni=>{addTag(draft,ni.id,null);reopen()},()=>reopen())});
     hydrate(B);
   };
-  sheet(title,'<div id="tagBody"></div>',paint);
+  sheet(title,'<div id="tagBody"></div>',paint,{foot:'<button class="btn pri" data-done style="height:48px">Apply</button>'});
 }
 
 /* ---------- viewer ---------- */
@@ -861,14 +863,22 @@ function hideSheet(){
   });
 }
 /* ---------- photo picker sheet ---------- */
-function photoPickerSheet(title,candidates,onDone){
-  const sel=new Set();const cap=600;const list=candidates.slice(0,cap);
-  sheet(title,`<div class="note" style="padding-top:0;padding-bottom:10px">Tap photos to pick them.${candidates.length>cap?' Showing the newest '+cap+'.':''}</div><div class="grid3" id="pp">${list.map(p=>`<button class="tile" data-pp="${p.id}"><div class="img"><img alt="" data-p="${p.id}" data-k="t"><div class="chk"></div></div></button>`).join('')||'<div class="empty" style="grid-column:1/-1">No photos to add.</div>'}</div><div style="padding:16px 20px 0;display:flex;gap:8px"><button class="btn" data-all>Select all</button><button class="btn pri" data-done disabled>Add 0</button></div>`,el=>{
+function photoPickerSheet(title,candidates,onDone,opts={}){
+  const sel=new Set();const cap=600;let fType=null,noSub=false;const it=opts.item;
+  const types=quickCats().flatMap(c=>sortedItems(c)).map(q=>({q,n:candidates.reduce((n,p)=>n+(p.tags.some(t=>t.item===q.id)?1:0),0)})).filter(x=>x.n);
+  const noSubN=it?candidates.reduce((n,p)=>n+(p.tags.some(t=>t.item===it.id&&!t.sub)?1:0),0):0;
+  const filtered=()=>{let l=candidates;if(fType)l=l.filter(p=>p.tags.some(t=>t.item===fType));if(noSub&&it)l=l.filter(p=>p.tags.some(t=>t.item===it.id&&!t.sub));return l};
+  const chips=()=>`<div class="chips" style="padding-bottom:8px"><button class="pill ${!fType?'on':''}" data-ft="">All · ${candidates.length}</button>${types.map(({q,n})=>`<button class="pill ${fType===q.id?'on':''}" data-ft="${q.id}">${esc(q.name)} · ${n}</button>`).join('')}${it&&it.subs.length?`<button class="pill ${noSub?'acc':''}" data-nosub>No ${esc(singular(catById(it.cat).subLabel.toLowerCase()))} yet · ${noSubN}</button>`:''}</div>`;
+  const grid=()=>{const list=filtered().slice(0,cap);return `${filtered().length>cap?`<div class="note" style="padding-top:0">Showing the newest ${cap} of ${filtered().length}.</div>`:''}<div class="grid3" id="pp">${list.map(p=>`<button class="tile ${sel.has(p.id)?'sel':''}" data-pp="${p.id}"><div class="img"><img alt="" data-p="${p.id}" data-k="t"><div class="chk">${sel.has(p.id)?I.check:''}</div></div></button>`).join('')||'<div class="empty" style="grid-column:1/-1">No photos match.</div>'}</div>`};
+  sheet(title,grid(),el=>{
     const btn=el.querySelector('[data-done]');const upd=()=>{btn.textContent=`Add ${sel.size}`;btn.disabled=!sel.size};
-    el.querySelectorAll('[data-pp]').forEach(b=>b.onclick=()=>{const id=b.dataset.pp;sel.has(id)?sel.delete(id):sel.add(id);b.classList.toggle('sel',sel.has(id));b.querySelector('.chk').innerHTML=sel.has(id)?I.check:'';upd()});
-    el.querySelector('[data-all]').onclick=()=>{const all=sel.size===list.length;el.querySelectorAll('[data-pp]').forEach(b=>{const id=b.dataset.pp;all?sel.delete(id):sel.add(id);b.classList.toggle('sel',!all);b.querySelector('.chk').innerHTML=all?'':I.check});upd()};
+    const bindGrid=()=>{el.querySelectorAll('[data-pp]').forEach(b=>b.onclick=()=>{const id=b.dataset.pp;sel.has(id)?sel.delete(id):sel.add(id);b.classList.toggle('sel',sel.has(id));b.querySelector('.chk').innerHTML=sel.has(id)?I.check:'';upd()});hydrate(el)};
+    const repaint=()=>{el.querySelector('.b').innerHTML=grid();el.querySelector('.sh').innerHTML=chips();bindChips();bindGrid()};
+    const bindChips=()=>{el.querySelectorAll('[data-ft]').forEach(b=>b.onclick=()=>{fType=b.dataset.ft||null;repaint()});const ns=el.querySelector('[data-nosub]');if(ns)ns.onclick=()=>{noSub=!noSub;repaint()}};
+    el.querySelector('[data-all]').onclick=()=>{const list=filtered().slice(0,cap);const all=list.every(p=>sel.has(p.id));list.forEach(p=>all?sel.delete(p.id):sel.add(p.id));el.querySelectorAll('[data-pp]').forEach(b=>{const on=sel.has(b.dataset.pp);b.classList.toggle('sel',on);b.querySelector('.chk').innerHTML=on?I.check:''});upd()};
     btn.onclick=()=>{closeSheet();onDone([...sel])};
-  });
+    bindChips();bindGrid();upd();
+  },{sub:chips(),foot:'<button class="btn" data-all style="height:48px">Select shown</button><button class="btn pri" data-done style="height:48px" disabled>Add 0</button>'});
 }
 function outfitPickSheet(it,onPick){
   const cat=catById(it.cat);
@@ -948,7 +958,7 @@ const actions={
   newSub:()=>subForm(itemById(S.itemId)),
   pickSub:b=>{const k=b.dataset.id;if(b.dataset.off){if(S.subId===k)S.subId=null;S.hideSubs.delete(k);render();return}if(S.subId===k){S.subId=null;S.hideSubs.add(k)}else if(S.hideSubs.has(k))S.hideSubs.delete(k);else{S.subId=k;S.hideSubs.delete(k)}render()},
   pickKid:b=>{const k=b.dataset.id;if(b.dataset.off){if(S.kidId===k)S.kidId=null;S.hideKids.delete(k);render();return}if(S.kidId===k){S.kidId=null;S.hideKids.add(k)}else if(S.hideKids.has(k))S.hideKids.delete(k);else{S.kidId=k;S.hideKids.delete(k)}render()},
-  addToSub:b=>{const it=itemById(S.itemId);const sb=subOf(it,b.dataset.id);if(!sb)return;const cands=S.photos.filter(p=>p.tags.some(t=>t.item===it.id&&t.sub!==sb.id));photoPickerSheet(`Add to ${esc(sb.name)}`,cands,async ids=>{for(const id of ids){const p=photoById(id);addTag(p.tags,it.id,sb.id);await savePhoto(p)}recount();render();toast(`Added ${ids.length} to ${sb.name}`)})},
+  addToSub:b=>{const it=itemById(S.itemId);const sb=subOf(it,b.dataset.id);if(!sb)return;const cands=S.photos.filter(p=>p.tags.some(t=>t.item===it.id&&t.sub!==sb.id));photoPickerSheet(`Add to ${esc(sb.name)}`,cands,async ids=>{if(!ids.length)return;for(const id of ids){const p=photoById(id);addTag(p.tags,it.id,sb.id);await savePhoto(p)}recount();render();toast(`Added ${ids.length} to ${sb.name}`)},{item:it})},
   selOutfit:()=>{const it=itemById(S.itemId);outfitPickSheet(it,async sb=>{const ids=[...S.select];const before=ids.map(id=>[photoById(id),photoById(id).tags.map(t=>({...t}))]);for(const id of ids){const p=photoById(id);addTag(p.tags,it.id,sb.id);await savePhoto(p)}recount();S.select=null;render();toast(`Added ${ids.length} to ${sb.name}`,async()=>{for(const [p,tags] of before){p.tags=tags;await DB.put('photos',meta(p))}recount();render()})})},
   pickType:b=>{const k=b.dataset.id;if(!k){S.typeId=null;render();return}if(b.dataset.off){if(S.typeId===k)S.typeId=null;S.hideTypes.delete(k);render();return}if(S.typeId===k){S.typeId=null;S.hideTypes.add(k)}else if(S.hideTypes.has(k))S.hideTypes.delete(k);else{S.typeId=k;S.hideTypes.delete(k)}render()},
   clearFilters:()=>{S.subId=null;S.typeId=null;S.kidId=null;S.hideTypes.clear();S.hideSubs.clear();S.hideKids.clear();render()},
