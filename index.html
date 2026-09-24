@@ -240,7 +240,14 @@ function showProgress(n,t){let e=$('#prog');if(!e){e=document.createElement('div
 function hideProgress(){const e=$('#prog');if(e)e.remove()}
 
 /* ---------- persistence ---------- */
-const savePhoto=p=>DB.put('photos',p);
+function applyImplied(tags){
+  // A character tagged with a show (its group) also gets that show's tag.
+  for(const t of tags.slice()){const it=itemById(t.item);if(!it||!it.group)continue;
+    const g=it.group.trim().toLowerCase();const show=S.items.find(x=>x.cat!==it.cat&&x.name.trim().toLowerCase()===g);
+    if(show&&!tags.some(k=>k.item===show.id))tags.push({item:show.id,sub:null})}
+  return tags;
+}
+const savePhoto=p=>{applyImplied(p.tags);return DB.put('photos',p)};
 const saveItem=i=>DB.put('items',i);
 const saveCat=c=>DB.put('cats',c);
 async function deletePhotos(ids){
