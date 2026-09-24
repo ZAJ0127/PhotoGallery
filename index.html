@@ -1,0 +1,619 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#111114">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Sorter">
+<title>Photo Sorter</title>
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="apple-touch-icon" href="./icon-180.png">
+<link rel="icon" href="./icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+:root{
+  --bg:#111114;--bg2:#16161a;--sur:#1c1c21;--sur2:#24242b;--sur3:#2a2a33;--sur4:#34343e;
+  --line:#24242b;--txt:#f2f2f4;--txt2:#c5c5cf;--mut:#9a9aa6;--acc:#ff7a59;--acc2:#ff8a66;--star:#ffd166;
+  --sat:env(safe-area-inset-top,0px);--sab:env(safe-area-inset-bottom,0px);
+  color-scheme:dark;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;margin:0;background:var(--bg);color:var(--txt);font-family:Manrope,system-ui,-apple-system,sans-serif;overscroll-behavior:none}
+body{display:flex;flex-direction:column;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+button,input,select{font-family:inherit;font-size:inherit;color:inherit}
+button{border:0;background:none;padding:0;cursor:pointer}
+input,select{background:var(--sur2);border:0;border-radius:12px;padding:12px 14px;width:100%;color:var(--txt);font-weight:600;outline:none}
+input:focus,select:focus{box-shadow:0 0 0 2px var(--acc)}
+button:focus-visible,a:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+#app{flex:1;display:flex;flex-direction:column;min-height:0}
+.screen{flex:1;display:flex;flex-direction:column;min-height:0}
+.scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:24px}
+.head{padding:calc(var(--sat) + 14px) 20px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-shrink:0}
+.title{font-size:30px;font-weight:800;letter-spacing:-.02em;margin:0}
+.title.sm{font-size:20px}
+.icon-btn{width:44px;height:44px;border-radius:22px;background:var(--sur);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.icon-btn.acc{background:var(--acc);color:#111114}
+.pill{height:36px;padding:0 14px;border-radius:18px;background:var(--sur);font-size:13px;font-weight:700;display:inline-flex;align-items:center;gap:6px;color:var(--txt2);flex-shrink:0;white-space:nowrap}
+.pill.on{background:var(--txt);color:#111114}
+.pill.acc{background:var(--acc);color:#111114}
+.chips{display:flex;gap:8px;padding:0 20px 14px;overflow-x:auto;scrollbar-width:none;flex-shrink:0}
+.chips::-webkit-scrollbar{display:none}
+.section{padding:0 20px}
+.label{font-size:13px;font-weight:800;color:var(--mut);padding:0 20px 8px}
+.row-head{display:flex;align-items:baseline;justify-content:space-between;padding:0 20px 8px}
+.link{color:var(--acc2);font-size:13px;font-weight:700}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:3px;padding:0 20px}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;padding:0 20px}
+.tile{display:flex;flex-direction:column;gap:3px;background:none;text-align:left;color:inherit;min-width:0}
+.tile .img{position:relative;aspect-ratio:1;background:var(--sur2);border-radius:4px;overflow:hidden}
+.tile .img img{width:100%;height:100%;object-fit:cover;display:block}
+.tile.sel .img{outline:3px solid var(--acc);outline-offset:-3px}
+.tile .ind{display:flex;gap:3px;align-items:center;height:12px}
+.dot{width:8px;height:8px;border-radius:4px;flex-shrink:0}
+.chk{position:absolute;top:6px;right:6px;width:22px;height:22px;border-radius:11px;border:2px solid #fff;opacity:.85}
+.tile.sel .chk{background:var(--acc);border-color:var(--acc);display:flex;align-items:center;justify-content:center;opacity:1}
+.card{display:flex;flex-direction:column;gap:8px;text-align:left;color:inherit;min-width:0}
+.card .cov{aspect-ratio:1;border-radius:16px;background:var(--sur2);overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:40px;font-weight:800;color:#111114}
+.card .cov img{width:100%;height:100%;object-fit:cover;display:block}
+.card .nm{font-size:15px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card .mt{font-size:12px;font-weight:600;color:var(--mut)}
+.month{font-size:13px;font-weight:800;color:var(--mut);padding:10px 20px 8px}
+.tabbar{display:flex;justify-content:space-around;align-items:flex-start;border-top:1px solid var(--line);padding:10px 4px calc(var(--sab) + 12px);background:var(--bg2);flex-shrink:0}
+.tab{display:flex;flex-direction:column;align-items:center;gap:4px;width:64px;color:var(--mut);font-size:11px;font-weight:700;text-decoration:none}
+.tab.on{color:var(--acc);font-weight:800}
+.tab .fab{width:44px;height:44px;border-radius:22px;background:var(--acc);display:flex;align-items:center;justify-content:center;margin-top:-18px;color:#111114}
+.bar{display:flex;gap:10px;padding:12px 20px calc(var(--sab) + 14px);flex-shrink:0;background:var(--bg)}
+.btn{height:52px;border-radius:16px;background:var(--sur);font-size:15px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px;padding:0 16px;flex:1}
+.btn.pri{background:var(--acc);color:#111114;font-weight:800;flex:2}
+.btn.sm{height:40px;font-size:13px;border-radius:12px;padding:0 12px;flex:0 0 auto}
+.btn.danger{color:var(--acc2)}
+.btn:disabled{opacity:.4}
+.stage{margin:0 20px;border-radius:20px;background:var(--sur2);overflow:hidden;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.stage img{max-width:100%;max-height:100%;object-fit:contain;display:block}
+.tags{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;padding:10px 20px 0;min-height:38px}
+.tag{display:inline-flex;align-items:center;gap:6px;padding:5px 8px 5px 8px;border-radius:14px;background:var(--sur3);font-size:12px;font-weight:700}
+.tag .x{width:16px;height:16px;border-radius:8px;background:var(--sur4);display:flex;align-items:center;justify-content:center;color:var(--txt2)}
+.hrow{display:flex;gap:12px;padding:0 20px;overflow-x:auto;scrollbar-width:none;flex-shrink:0}
+.hrow::-webkit-scrollbar{display:none}
+.av{display:flex;flex-direction:column;align-items:center;gap:6px;width:70px;flex-shrink:0;color:var(--txt2);font-size:12px;font-weight:600}
+.av .c{width:64px;height:64px;border-radius:32px;background:var(--sur3);border:3px solid transparent;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800;color:#111114;overflow:hidden}
+.av .c img{width:100%;height:100%;object-fit:cover}
+.av.on{color:var(--txt);font-weight:700}
+.av.on .c{border-color:var(--txt);box-shadow:0 0 0 3px var(--acc)}
+.sq{display:flex;flex-direction:column;gap:6px;width:96px;flex-shrink:0;color:var(--txt2);font-size:12px;font-weight:600;text-align:left}
+.sq .c{width:96px;height:96px;border-radius:14px;background:var(--sur3);border:2px solid transparent;overflow:hidden;display:flex;align-items:center;justify-content:center;color:var(--mut);font-size:11px}
+.sq .c img{width:100%;height:100%;object-fit:cover}
+.sq.on{color:var(--txt);font-weight:700}
+.sq.on .c{border-color:var(--acc)}
+.list{margin:0 20px;border-radius:16px;overflow:hidden;background:var(--sur)}
+.li{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border-bottom:1px solid var(--bg);width:100%;text-align:left;color:inherit}
+.li:last-child{border-bottom:0}
+.li .t{font-size:15px;font-weight:700}
+.li .s{font-size:12px;font-weight:600;color:var(--mut);margin-top:2px}
+.sw{width:46px;height:28px;border-radius:14px;background:var(--sur4);position:relative;flex-shrink:0}
+.sw::after{content:"";position:absolute;top:2px;left:2px;width:24px;height:24px;border-radius:12px;background:var(--mut);transition:transform .15s}
+.sw.on{background:var(--acc)}.sw.on::after{background:#111114;transform:translateX(18px)}
+.seg{display:flex;background:var(--sur);border-radius:12px;padding:3px;margin:0 20px 16px}
+.seg button{flex:1;height:38px;border-radius:10px;font-size:13px;font-weight:700;color:var(--mut)}
+.seg button.on{background:var(--sur4);color:var(--txt)}
+.empty{padding:40px 30px;text-align:center;color:var(--mut);font-size:14px;font-weight:600;line-height:1.5}
+.note{font-size:12px;font-weight:600;color:var(--mut);padding:10px 20px 0;line-height:1.4}
+.sheet-bg{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;z-index:20}
+.sheet{background:var(--bg2);border-radius:22px 22px 0 0;width:100%;max-height:88%;display:flex;flex-direction:column;padding-bottom:var(--sab)}
+.sheet .h{display:flex;align-items:center;justify-content:space-between;padding:16px 20px 8px}
+.sheet .h h2{margin:0;font-size:18px;font-weight:800}
+.sheet .b{overflow-y:auto;padding:8px 0 12px}
+.viewer{position:fixed;inset:0;background:#000;z-index:30;display:flex;flex-direction:column}
+.viewer .vh{display:flex;justify-content:space-between;padding:calc(var(--sat) + 10px) 14px 8px}
+.viewer .vi{flex:1;display:flex;align-items:center;justify-content:center;min-height:0}
+.viewer .vi img{max-width:100%;max-height:100%;object-fit:contain}
+.viewer .vf{padding:8px 0 calc(var(--sab) + 10px);background:rgba(17,17,20,.9)}
+.toast{position:fixed;left:50%;bottom:calc(var(--sab) + 90px);transform:translateX(-50%);background:var(--txt);color:#111114;padding:10px 16px;border-radius:14px;font-size:13px;font-weight:700;z-index:40;pointer-events:none;opacity:0;transition:opacity .2s}
+.toast.on{opacity:1}
+.form{display:flex;flex-direction:column;gap:12px;padding:8px 20px 16px}
+.form label{font-size:12px;font-weight:700;color:var(--mut);display:flex;flex-direction:column;gap:6px}
+.spin{width:22px;height:22px;border:3px solid var(--sur4);border-top-color:var(--acc);border-radius:50%;animation:sp .8s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+.progress{position:fixed;top:0;left:0;right:0;padding:calc(var(--sat) + 10px) 20px 10px;background:var(--bg2);z-index:50;display:flex;align-items:center;gap:12px;font-size:13px;font-weight:700}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="layer"></div>
+<div class="toast" id="toast"></div>
+<input type="file" id="picker" accept="image/*" multiple hidden>
+<input type="file" id="zipPicker" accept=".zip,application/zip" hidden>
+<script>
+/* ---------- tiny helpers ---------- */
+const $=(s,r=document)=>r.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
+const PALETTE=['#ff7a59','#5aa9ff','#c99bff','#ffd166','#7fd18c','#ff9ec4','#6ee7d8','#f4a261'];
+const colorFor=id=>{let h=0;for(const c of id)h=(h*31+c.charCodeAt(0))>>>0;return PALETTE[h%PALETTE.length]};
+let toastT;function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('on'),1800)}
+const I={
+ plus:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
+ x:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+ back:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>',
+ chev:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>',
+ check:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg>',
+ gal:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>',
+ person:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.5-7 8-7s8 3 8 7"/></svg>',
+ star:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3l2.8 5.9 6.4.8-4.7 4.4 1.2 6.4L12 17.4 6.3 20.5l1.2-6.4L2.8 9.7l6.4-.8z"/></svg>',
+ starF:'<svg width="22" height="22" viewBox="0 0 24 24" fill="#ffd166" stroke="#ffd166" stroke-width="2" stroke-linejoin="round"><path d="M12 3l2.8 5.9 6.4.8-4.7 4.4 1.2 6.4L12 17.4 6.3 20.5l1.2-6.4L2.8 9.7l6.4-.8z"/></svg>',
+ starS:'<svg width="12" height="12" viewBox="0 0 24 24" fill="#ffd166" stroke="none"><path d="M12 3l2.8 5.9 6.4.8-4.7 4.4 1.2 6.4L12 17.4 6.3 20.5l1.2-6.4L2.8 9.7l6.4-.8z"/></svg>',
+ sort:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 12h10M4 17h6"/><path d="M17 15l3 3-3 3"/></svg>',
+ more:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg>',
+ shuffle:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h4l10 10h4M3 17h4l10-10h4"/><path d="M18 4l3 3-3 3M18 14l3 3-3 3"/></svg>',
+ trash:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>',
+ edit:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4l10-10-4-4L4 16v4z"/><path d="M12 8l4 4"/></svg>',
+ tagI:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12V4h8l9 9-8 8z"/><circle cx="7.5" cy="8.5" r="1.5"/></svg>',
+ img:'<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-8 8"/></svg>',
+ up:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></svg>',
+ down:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>',
+};
+
+/* ---------- IndexedDB ---------- */
+const DB=(()=>{
+  let db;
+  const open=()=>new Promise((res,rej)=>{
+    const r=indexedDB.open('photosorter',1);
+    r.onupgradeneeded=e=>{const d=e.target.result;
+      d.createObjectStore('photos',{keyPath:'id'});
+      d.createObjectStore('items',{keyPath:'id'});
+      d.createObjectStore('cats',{keyPath:'id'});
+      d.createObjectStore('meta',{keyPath:'k'});};
+    r.onsuccess=()=>{db=r.result;res()};r.onerror=()=>rej(r.error);
+  });
+  const tx=(s,m,fn)=>new Promise((res,rej)=>{const t=db.transaction(s,m);const st=t.objectStore(s);const q=fn(st);t.oncomplete=()=>res(q&&q.result);t.onerror=()=>rej(t.error)});
+  return{open,
+    all:s=>tx(s,'readonly',st=>st.getAll()),
+    get:(s,k)=>tx(s,'readonly',st=>st.get(k)),
+    put:(s,v)=>tx(s,'readwrite',st=>st.put(v)),
+    putMany:(s,vs)=>tx(s,'readwrite',st=>{vs.forEach(v=>st.put(v))}),
+    del:(s,k)=>tx(s,'readwrite',st=>st.delete(k)),
+    clear:s=>tx(s,'readwrite',st=>st.clear())};
+})();
+
+/* ---------- state ---------- */
+const S={photos:[],items:[],cats:[],view:'gallery',galFilter:'all',select:null,catSort:{},itemId:null,subId:null,
+  sortFilter:'unsorted',sortQueue:[],sortIdx:0,sortCat:null,sortItem:null,draft:[],favFilter:'all',shufFilter:'all',shufId:null,
+  catView:null,history:[]};
+const urls={};
+function thumbUrl(p){if(!p)return'';if(!urls['t'+p.id])urls['t'+p.id]=URL.createObjectURL(p.thumb);return urls['t'+p.id]}
+function fullUrl(p){if(!urls['f'+p.id])urls['f'+p.id]=URL.createObjectURL(p.full);return urls['f'+p.id]}
+const photoById=id=>S.photos.find(p=>p.id===id);
+const itemById=id=>S.items.find(i=>i.id===id);
+const catById=id=>S.cats.find(c=>c.id===id);
+const enabledCats=()=>S.cats.filter(c=>c.enabled).sort((a,b)=>a.order-b.order);
+const primaryCat=()=>enabledCats()[0];
+const itemsOf=cat=>S.items.filter(i=>i.cat===cat);
+const subOf=(item,subId)=>item&&item.subs.find(s=>s.id===subId);
+function tagLabel(t){const it=itemById(t.item);if(!it)return null;const sb=subOf(it,t.sub);return it.name+(sb?' · '+sb.name:'')}
+function photoItems(p){return [...new Set(p.tags.map(t=>t.item))].map(itemById).filter(Boolean)}
+const byNewest=(a,b)=>b.added-a.added;
+
+async function seed(){
+  if(S.cats.length)return;
+  const c1={id:uid(),name:'Characters',subLabel:'Outfits',groupLabel:'Show',enabled:true,order:0};
+  const c2={id:uid(),name:'Shows',subLabel:'Seasons',groupLabel:'',enabled:true,order:1};
+  await DB.putMany('cats',[c1,c2]);S.cats=[c1,c2];
+}
+async function load(){
+  await DB.open();
+  S.cats=await DB.all('cats');S.items=await DB.all('items');S.photos=await DB.all('photos');
+  await seed();
+  S.photos.sort(byNewest);
+}
+
+/* ---------- image processing ---------- */
+function loadImage(blob){return new Promise((res,rej)=>{const u=URL.createObjectURL(blob);const im=new Image();im.onload=()=>{URL.revokeObjectURL(u);res(im)};im.onerror=()=>{URL.revokeObjectURL(u);rej(new Error('Not an image'))};im.src=u})}
+function draw(im,max){const s=Math.min(1,max/Math.max(im.naturalWidth,im.naturalHeight));const c=document.createElement('canvas');c.width=Math.round(im.naturalWidth*s);c.height=Math.round(im.naturalHeight*s);c.getContext('2d').drawImage(im,0,0,c.width,c.height);return c}
+const toBlob=(c,q)=>new Promise(r=>c.toBlob(r,'image/jpeg',q));
+function dhash(im){const c=document.createElement('canvas');c.width=9;c.height=8;const x=c.getContext('2d');x.drawImage(im,0,0,9,8);const d=x.getImageData(0,0,9,8).data;let bits='';for(let y=0;y<8;y++){for(let i=0;i<8;i++){const a=(y*9+i)*4,b=a+4;const la=d[a]*.299+d[a+1]*.587+d[a+2]*.114,lb=d[b]*.299+d[b+1]*.587+d[b+2]*.114;bits+=la>lb?'1':'0'}}return bits}
+function hamming(a,b){let n=0;for(let i=0;i<64;i++)if(a[i]!==b[i])n++;return n}
+async function importFiles(files){
+  const list=[...files].filter(f=>f.type.startsWith('image/')||/\.(jpe?g|png|webp|gif|heic)$/i.test(f.name));
+  if(!list.length){toast('No images selected');return}
+  showProgress(0,list.length);
+  let n=0,fail=0;const added=[];
+  for(const f of list){
+    try{
+      const im=await loadImage(f);
+      const full=await toBlob(draw(im,2000),.86);
+      const thumb=await toBlob(draw(im,320),.8);
+      const p={id:uid(),name:f.name,added:f.lastModified||Date.now(),imported:Date.now(),w:im.naturalWidth,h:im.naturalHeight,full,thumb,hash:dhash(im),fav:false,tags:[]};
+      await DB.put('photos',p);S.photos.push(p);added.push(p);
+    }catch(e){fail++}
+    showProgress(++n,list.length);
+  }
+  S.photos.sort(byNewest);hideProgress();
+  toast(`Added ${added.length} photo${added.length===1?'':'s'}`+(fail?`, ${fail} skipped`:''));
+  render();
+}
+function showProgress(n,t){let e=$('#prog');if(!e){e=document.createElement('div');e.id='prog';e.className='progress';document.body.appendChild(e)}e.innerHTML=`<div class="spin"></div><div>Importing ${n} of ${t}</div>`}
+function hideProgress(){const e=$('#prog');if(e)e.remove()}
+
+/* ---------- persistence ---------- */
+const savePhoto=p=>DB.put('photos',p);
+const saveItem=i=>DB.put('items',i);
+const saveCat=c=>DB.put('cats',c);
+async function deletePhotos(ids){
+  for(const id of ids){await DB.del('photos',id);['t','f'].forEach(k=>{if(urls[k+id]){URL.revokeObjectURL(urls[k+id]);delete urls[k+id]}})}
+  S.photos=S.photos.filter(p=>!ids.includes(p.id));
+  for(const it of S.items){let ch=false;if(ids.includes(it.cover)){it.cover=null;ch=true}for(const s of it.subs)if(ids.includes(s.cover)){s.cover=null;ch=true}if(ch)await saveItem(it)}
+}
+</script>
+<script>
+/* ---------- navigation ---------- */
+function go(view,extra={}){Object.assign(S,extra);S.view=view;S.select=null;render();$('#app').scrollTop=0}
+function nav(){
+  const p=primaryCat();const cur=S.view;
+  const tab=(id,ic,label,on)=>`<button class="tab ${on?'on':''}" data-nav="${id}">${ic}${label}</button>`;
+  return `<nav class="tabbar">
+    ${tab('gallery',I.gal,'Gallery',cur==='gallery')}
+    ${p?tab('cat:'+p.id,I.person,esc(p.name),cur==='cat'&&S.catView===p.id):''}
+    <button class="tab" data-nav="sort"><span class="fab">${I.sort}</span>Sort</button>
+    ${tab('favorites',I.star,'Favorites',cur==='favorites')}
+    ${tab('more',I.more,'More',cur==='more'||cur==='cat'&&S.catView!==(p&&p.id))}
+  </nav>`;
+}
+function render(){
+  const V={gallery,cat:catView,item:itemView,sort:sortView,favorites:favView,shuffle:shuffleView,more:moreView,dupes:dupesView};
+  $('#app').innerHTML=(V[S.view]||gallery)();
+  bind();
+}
+function bind(){
+  const app=$('#app');
+  app.querySelectorAll('[data-nav]').forEach(b=>b.onclick=()=>{const v=b.dataset.nav;if(v.startsWith('cat:'))go('cat',{catView:v.slice(4)});else if(v==='sort')startSort();else go(v)});
+  app.querySelectorAll('[data-act]').forEach(b=>b.onclick=e=>actions[b.dataset.act]&&actions[b.dataset.act](b,e));
+}
+
+/* ---------- shared bits ---------- */
+function dotsFor(p){return photoItems(p).map(i=>`<span class="dot" style="background:${colorFor(i.id)}"></span>`).join('')+(p.fav?I.starS:'')}
+function tileHTML(p,sel){return `<button class="tile ${sel?'sel':''}" data-act="tile" data-id="${p.id}"><div class="img"><img src="${thumbUrl(p)}" alt="" loading="lazy">${S.select?`<div class="chk">${sel?I.check:''}</div>`:''}</div><div class="ind">${dotsFor(p)}</div></button>`}
+function monthGrid(photos,selSet){
+  if(!photos.length)return '';
+  const groups=new Map();
+  for(const p of photos){const d=new Date(p.added);const k=d.toLocaleString(undefined,{month:'long',year:'numeric'});if(!groups.has(k))groups.set(k,[]);groups.get(k).push(p)}
+  return [...groups].map(([k,ps])=>`<div class="month">${esc(k)}</div><div class="grid3">${ps.map(p=>tileHTML(p,selSet&&selSet.has(p.id))).join('')}</div>`).join('');
+}
+function coverHTML(id,fallbackText,color){const p=photoById(id);return p?`<img src="${thumbUrl(p)}" alt="">`:`<span style="color:#111114">${esc(fallbackText)}</span>`}
+
+/* ---------- Gallery ---------- */
+function gallery(){
+  const untagged=S.photos.filter(p=>!p.tags.length);
+  const list=S.galFilter==='unsorted'?untagged:S.galFilter==='tagged'?S.photos.filter(p=>p.tags.length):S.photos;
+  const sel=S.select;
+  const head=sel?`<div class="head"><button class="pill" data-act="selCancel">Cancel</button><div style="font-size:16px;font-weight:800">${sel.size} selected</div><button class="pill" data-act="selAll">${sel.size===list.length?'Select none':'Select all'}</button></div>`
+   :`<div class="head"><h1 class="title">Gallery</h1><div style="display:flex;gap:8px"><button class="pill" data-act="selStart" ${S.photos.length?'':'disabled'}>Select</button><button class="pill on" data-act="add">${I.plus.replace('20','16').replace('20','16')}Add photos</button></div></div>`;
+  const chip=(k,l,n)=>`<button class="pill ${S.galFilter===k?'on':''}" data-act="galFilter" data-k="${k}">${l} · ${n}</button>`;
+  const body=S.photos.length?monthGrid(list,sel):`<div class="empty">No photos yet.<br>Tap Add photos to pick from your library, or share photos to this app.</div>`;
+  const bar=sel?`<div class="bar" style="flex-direction:column;gap:8px;background:var(--bg2);border-top:1px solid var(--line)"><div style="font-size:12px;font-weight:700;color:var(--mut)">Apply to ${sel.size} photo${sel.size===1?'':'s'}</div><div style="display:flex;gap:8px"><button class="btn pri" style="height:48px;flex:1" data-act="selTag" ${sel.size?'':'disabled'}>Tag…</button><button class="btn" style="height:48px" data-act="selFav" ${sel.size?'':'disabled'}>${I.star.replace('22','16').replace('22','16')}Favorite</button><button class="btn" style="height:48px" data-act="selExport" ${sel.size?'':'disabled'}>Export</button><button class="btn danger" style="height:48px;flex:0 0 48px;padding:0" data-act="selDelete" aria-label="Delete selected" ${sel.size?'':'disabled'}>${I.trash}</button></div></div>`:nav();
+  return `<div class="screen">${head}<div class="chips">${chip('all','All',S.photos.length)}${chip('unsorted','Unsorted',untagged.length)}${chip('tagged','Tagged',S.photos.length-untagged.length)}</div><div class="scroll">${body}${S.photos.length?'<div class="note">Dots under a photo show its tagged items. Tap a photo to open it, or hold to select.</div>':''}</div>${bar}</div>`;
+}
+
+/* ---------- Category view (Characters / Shows / …) ---------- */
+function sortedItems(cat){
+  const mode=S.catSort[cat.id]||'custom';const its=itemsOf(cat.id).slice();
+  if(mode==='recent')return its.sort(byNewest);
+  if(mode==='group')return its.sort((a,b)=>(a.group||'~').localeCompare(b.group||'~')||a.order-b.order);
+  return its.sort((a,b)=>a.order-b.order);
+}
+function catView(){
+  const cat=catById(S.catView);if(!cat)return gallery();
+  const mode=S.catSort[cat.id]||'custom';const its=sortedItems(cat);
+  const seg=`<div class="seg">${[['custom','Custom'],['group',cat.groupLabel?'By '+esc(cat.groupLabel.toLowerCase()):'A–Z'],['recent','Recent']].map(([k,l])=>`<button class="${mode===k?'on':''}" data-act="catSort" data-k="${k}">${l}</button>`).join('')}</div>`;
+  let body='';
+  if(!its.length)body=`<div class="empty">No ${esc(cat.name.toLowerCase())} yet.<br>Tap + to create one.</div>`;
+  else if(mode==='group'){
+    const g=new Map();its.forEach(i=>{const k=i.group||'No '+(cat.groupLabel||'group').toLowerCase();if(!g.has(k))g.set(k,[]);g.get(k).push(i)});
+    body=[...g].map(([k,l])=>`<div class="month" style="padding-top:4px">${esc(k)}</div><div class="grid2" style="margin-bottom:16px">${l.map(i=>itemCard(i,cat)).join('')}</div>`).join('');
+  } else body=`<div class="grid2">${its.map(i=>itemCard(i,cat,mode==='custom')).join('')}</div>`;
+  return `<div class="screen"><div class="head"><h1 class="title">${esc(cat.name)}</h1><button class="icon-btn acc" data-act="newItem" aria-label="New">${I.plus}</button></div>${seg}<div class="scroll">${body}</div>${nav()}</div>`;
+}
+function itemCard(i,cat,reorder){
+  const n=S.photos.filter(p=>p.tags.some(t=>t.item===i.id)).length;
+  return `<div style="display:flex;flex-direction:column;gap:6px;min-width:0"><button class="card" data-act="openItem" data-id="${i.id}"><div class="cov" style="background:${colorFor(i.id)}">${coverHTML(i.cover,i.name[0]||'?')}</div><div class="nm">${esc(i.name)}</div><div class="mt">${i.group?esc(i.group)+' · ':''}${n} photo${n===1?'':'s'}${i.subs.length?' · '+i.subs.length+' '+esc(cat.subLabel.toLowerCase()):''}</div></button>${reorder?`<div style="display:flex;gap:6px"><button class="pill" style="height:30px;padding:0 10px" data-act="itemUp" data-id="${i.id}" aria-label="Move up">${I.up}</button><button class="pill" style="height:30px;padding:0 10px" data-act="itemDown" data-id="${i.id}" aria-label="Move down">${I.down}</button></div>`:''}</div>`;
+}
+
+/* ---------- Item detail ---------- */
+function itemView(){
+  const it=itemById(S.itemId);if(!it)return gallery();const cat=catById(it.cat);
+  const all=S.photos.filter(p=>p.tags.some(t=>t.item===it.id));
+  const shown=S.subId?all.filter(p=>p.tags.some(t=>t.item===it.id&&t.sub===S.subId)):all;
+  const sub=subOf(it,S.subId);
+  return `<div class="screen"><div class="head"><button class="icon-btn" data-act="back" aria-label="Back">${I.back}</button><button class="icon-btn" data-act="editItem" aria-label="Edit">${I.edit}</button></div>
+  <div class="scroll">
+   <div style="display:flex;align-items:center;gap:14px;padding:0 20px 18px"><div style="width:84px;height:84px;border-radius:42px;background:${colorFor(it.id)};overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:30px;font-weight:800;flex-shrink:0">${coverHTML(it.cover,it.name[0]||'?')}</div><div><div style="font-size:26px;font-weight:800;letter-spacing:-.02em">${esc(it.name)}</div><div style="font-size:13px;font-weight:600;color:var(--mut)">${it.group?esc(it.group)+'<br>':''}${all.length} photo${all.length===1?'':'s'} · ${it.subs.length} ${esc(cat.subLabel.toLowerCase())}</div></div></div>
+   <div class="row-head"><div class="label" style="padding:0">${esc(cat.subLabel)}</div><button class="link" data-act="newSub">+ Add ${esc(cat.subLabel.toLowerCase().replace(/s$/,''))}</button></div>
+   ${it.subs.length?`<div class="grid2" style="margin-bottom:18px">${it.subs.map(s=>{const n=all.filter(p=>p.tags.some(t=>t.item===it.id&&t.sub===s.id)).length;return `<button class="card" data-act="pickSub" data-id="${s.id}" style="${S.subId===s.id?'outline:2px solid var(--acc);outline-offset:4px;border-radius:16px':''}"><div class="cov" style="aspect-ratio:4/3;background:var(--sur3)">${coverHTML(s.cover,'')}</div><div class="nm">${esc(s.name)} <span style="color:var(--mut);font-weight:600">· ${n}</span></div></button>`}).join('')}</div>`:''}
+   <div class="row-head"><div class="label" style="padding:0">${sub?esc(it.name+' · '+sub.name):'All '+esc(it.name)+' photos'}</div>${sub?`<button class="link" data-act="pickSub" data-id="">Show all</button><button class="link" style="margin-left:12px" data-act="editSub" data-id="${sub.id}">Edit</button>`:'<span style="font-size:12px;font-weight:600;color:var(--mut)">Newest first</span>'}</div>
+   ${shown.length?`<div class="grid3">${shown.map(p=>tileHTML(p,false)).join('')}</div>`:`<div class="empty">Nothing here yet. Use Sort to tag photos.</div>`}
+  </div>${nav()}</div>`;
+}
+
+/* ---------- Sort mode ---------- */
+function sortFilters(){
+  const f=[{k:'unsorted',l:'Unsorted',fn:p=>!p.tags.length}];
+  for(const c of enabledCats()){const ids=new Set(itemsOf(c.id).map(i=>i.id));if(ids.size)f.push({k:'nocat:'+c.id,l:'No '+c.name.toLowerCase(),fn:p=>!p.tags.some(t=>ids.has(t.item))})}
+  for(const i of S.items)if(i.subs.length){const c=catById(i.cat);f.push({k:'nosub:'+i.id,l:i.name+' · no '+c.subLabel.toLowerCase().replace(/s$/,''),fn:p=>p.tags.some(t=>t.item===i.id)&&!p.tags.some(t=>t.item===i.id&&t.sub)})}
+  f.push({k:'all',l:'Everything',fn:()=>true});
+  return f;
+}
+function startSort(filter){
+  if(filter)S.sortFilter=filter;
+  const f=sortFilters().find(x=>x.k===S.sortFilter)||sortFilters()[0];S.sortFilter=f.k;
+  S.sortQueue=S.photos.filter(f.fn).map(p=>p.id);S.sortIdx=0;
+  loadDraft();go('sort');
+}
+function loadDraft(){const p=photoById(S.sortQueue[S.sortIdx]);S.draft=p?p.tags.map(t=>({...t})):[];S.sortCat=S.sortCat||(primaryCat()&&primaryCat().id);const it=S.sortItem&&itemById(S.sortItem);if(!it||it.cat!==S.sortCat)S.sortItem=null}
+function sortView(){
+  const p=photoById(S.sortQueue[S.sortIdx]);const fs=sortFilters();
+  const chips=`<div class="chips">${fs.map(f=>`<button class="pill ${S.sortFilter===f.k?'on':''}" data-act="sortFilter" data-k="${f.k}">${esc(f.l)}</button>`).join('')}</div>`;
+  const head=`<div class="head"><div style="display:flex;align-items:center;gap:10px"><button class="icon-btn" data-act="closeSort" aria-label="Close">${I.x}</button><div style="font-size:18px;font-weight:800">Sort</div></div><div style="font-size:14px;font-weight:600;color:var(--mut)">${p?`${S.sortIdx+1} of ${S.sortQueue.length}`:''}</div></div>`;
+  if(!p)return `<div class="screen">${head}${chips}<div class="empty" style="flex:1">${S.sortQueue.length?'All done — every photo in this filter is sorted.':'Nothing matches this filter.'}<br>Pick another filter, or add more photos.</div>${nav()}</div>`;
+  const cats=enabledCats();const cat=catById(S.sortCat)||cats[0];const its=sortedItems(cat);const it=itemById(S.sortItem);
+  const catRow=cats.length>1?`<div class="chips" style="padding-bottom:8px">${cats.map(c=>`<button class="pill ${c.id===cat.id?'acc':''}" data-act="sortCat" data-k="${c.id}">${esc(c.name)}</button>`).join('')}</div>`:'';
+  const itemRow=`<div class="row-head"><div class="label" style="padding:0">${esc(cat.name)}</div><button class="link" data-act="newItemSort">+ New</button></div><div class="hrow">${its.map(i=>{const on=it&&it.id===i.id;const tagged=S.draft.some(t=>t.item===i.id);return `<button class="av ${on?'on':''}" data-act="sortItem" data-id="${i.id}"><div class="c" style="background:${colorFor(i.id)}">${coverHTML(i.cover,i.name[0]||'?')}</div><div>${esc(i.name)}${tagged?' ✓':''}</div></button>`}).join('')||'<div class="note" style="padding:0">No items yet — tap + New.</div>'}</div>`;
+  const subRow=it?`<div class="row-head" style="padding-top:14px"><div class="label" style="padding:0">${esc(it.name)} · ${esc(cat.subLabel.toLowerCase())}</div><button class="link" data-act="newSubSort">+ New</button></div><div class="hrow" style="gap:10px">${[{id:null,name:'No '+cat.subLabel.toLowerCase().replace(/s$/,'')},...it.subs].map(s=>{const on=S.draft.some(t=>t.item===it.id&&(t.sub||null)===s.id);return `<button class="sq ${on?'on':''}" data-act="sortSub" data-id="${s.id||''}"><div class="c">${s.id?coverHTML(s.cover,''):'<span style="color:var(--mut)">—</span>'}</div><div>${esc(s.name)}${on?' ✓':''}</div></button>`}).join('')}</div>`:'';
+  const tags=`<div class="tags">${S.draft.map((t,i)=>{const l=tagLabel(t);const c=colorFor(t.item);return l?`<button class="tag" data-act="draftRm" data-i="${i}"><span class="dot" style="background:${c}"></span>${esc(l)}<span class="x">${I.x.replace(/18/g,'10')}</span></button>`:''}).join('')||'<span style="font-size:12px;font-weight:600;color:var(--mut);align-self:center">No tags yet — pick below</span>'}</div>`;
+  return `<div class="screen">${head}${chips}<div class="scroll" style="padding-bottom:8px"><div class="stage" style="height:38vh"><img src="${fullUrl(p)}" alt=""></div><div style="text-align:center;font-size:12px;font-weight:600;color:var(--mut);padding-top:8px">${esc(p.name)}</div>${tags}<div style="height:12px"></div>${catRow}${itemRow}${subRow}</div>
+  <div class="bar"><button class="btn" data-act="skip">Skip</button><button class="btn pri" data-act="saveNext">Save &amp; next</button></div></div>`;
+}
+function addTag(arr,itemId,subId){if(arr.some(t=>t.item===itemId&&(t.sub||null)===(subId||null)))return;if(!subId&&arr.some(t=>t.item===itemId))return;if(subId){const k=arr.findIndex(t=>t.item===itemId&&!t.sub);if(k>=0)arr.splice(k,1)}arr.push({item:itemId,sub:subId||null})}
+function toggleDraft(itemId,subId){
+  const i=S.draft.findIndex(t=>t.item===itemId&&(t.sub||null)===(subId||null));
+  if(i>=0)S.draft.splice(i,1);
+  else addTag(S.draft,itemId,subId);
+}
+
+/* ---------- Favorites ---------- */
+function favView(){
+  const favs=S.photos.filter(p=>p.fav);
+  const its=[...new Set(favs.flatMap(p=>p.tags.map(t=>t.item)))].map(itemById).filter(Boolean);
+  const list=S.favFilter==='all'?favs:favs.filter(p=>p.tags.some(t=>t.item===S.favFilter));
+  return `<div class="screen"><div class="head"><h1 class="title">Favorites</h1><button class="pill" data-act="shuffle" data-k="fav">${I.shuffle.replace(/18/g,'16')}Shuffle</button></div>
+  <div class="chips"><button class="pill ${S.favFilter==='all'?'on':''}" data-act="favFilter" data-k="all">All · ${favs.length}</button>${its.map(i=>`<button class="pill ${S.favFilter===i.id?'on':''}" data-act="favFilter" data-k="${i.id}">${esc(i.name)} · ${favs.filter(p=>p.tags.some(t=>t.item===i.id)).length}</button>`).join('')}</div>
+  <div class="scroll">${list.length?`<div class="grid2" style="gap:6px">${list.map(p=>tileHTML(p,false)).join('')}</div><div class="note">Open any photo to set it as a cover for a character or outfit.</div>`:'<div class="empty">No favorites yet.<br>Open a photo and tap the star.</div>'}</div>${nav()}</div>`;
+}
+
+/* ---------- Shuffle ---------- */
+function shufflePool(){const k=S.shufFilter;if(k==='fav')return S.photos.filter(p=>p.fav);if(k==='all')return S.photos;return S.photos.filter(p=>p.tags.some(t=>t.item===k))}
+function pickRandom(){const pool=shufflePool();if(!pool.length){S.shufId=null;return}let p=pool[Math.floor(Math.random()*pool.length)];if(pool.length>1&&p.id===S.shufId)p=pool[(pool.indexOf(p)+1)%pool.length];S.shufId=p.id}
+function shuffleView(){
+  const p=photoById(S.shufId);
+  const its=S.items.filter(i=>S.photos.some(p=>p.tags.some(t=>t.item===i.id)));
+  const chip=(k,l)=>`<button class="pill ${S.shufFilter===k?'on':''}" data-act="shufFilter" data-k="${k}">${esc(l)}</button>`;
+  return `<div class="screen"><div class="head"><button class="icon-btn" data-act="back" aria-label="Close">${I.x}</button><div style="font-size:18px;font-weight:800">Shuffle</div><div style="width:44px"></div></div>
+  <div class="chips">${chip('all','Everything')}${chip('fav','Favorites')}${its.map(i=>chip(i.id,i.name)).join('')}</div>
+  <div class="scroll" style="display:flex;flex-direction:column">${p?`<div class="stage" style="flex:1;min-height:0;height:52vh"><img src="${fullUrl(p)}" alt=""></div><div class="tags">${p.tags.map(t=>{const l=tagLabel(t);return l?`<span class="tag"><span class="dot" style="background:${colorFor(t.item)}"></span>${esc(l)}</span>`:''}).join('')}</div>`:'<div class="empty">Nothing to show for this filter.</div>'}</div>
+  <div class="bar"><button class="btn" style="flex:0 0 52px;padding:0" data-act="shufFav" aria-label="Favorite" ${p?'':'disabled'}>${p&&p.fav?I.starF:I.star}</button><button class="btn" style="flex:0 0 52px;padding:0" data-act="shufOpen" aria-label="Open" ${p?'':'disabled'}>${I.tagI}</button><button class="btn pri" data-act="shufNext">${I.shuffle}Another</button></div></div>`;
+}
+
+/* ---------- More: categories & tools ---------- */
+function moreView(){
+  const p=primaryCat();
+  const cats=S.cats.slice().sort((a,b)=>a.order-b.order);
+  return `<div class="screen"><div class="head"><h1 class="title">More</h1></div><div class="scroll">
+  <div class="label">Browse</div><div class="list">${enabledCats().filter(c=>c.id!==(p&&p.id)).map(c=>`<button class="li" data-nav="cat:${c.id}"><div><div class="t">${esc(c.name)}</div><div class="s">${itemsOf(c.id).length} items</div></div>${I.chev}</button>`).join('')}<button class="li" data-act="shuffle" data-k="all"><div class="t">Shuffle</div>${I.chev}</button></div>
+  <div class="label" style="padding-top:22px">Tab categories</div><div class="note" style="padding-top:0;padding-bottom:10px">The first enabled category gets its own tab. Others show above. A photo can carry tags from any of them.</div>
+  <div class="list">${cats.map((c,i)=>`<div class="li"><button style="flex:1;text-align:left;color:inherit" data-act="editCat" data-id="${c.id}"><div class="t">${esc(c.name)}</div><div class="s">Sub-buckets: ${esc(c.subLabel)}${c.groupLabel?' · grouped by '+esc(c.groupLabel.toLowerCase()):''} · ${itemsOf(c.id).length} items</div></button><button class="pill" style="height:30px;padding:0 8px" data-act="catUp" data-id="${c.id}" aria-label="Move up" ${i?'':'disabled'}>${I.up}</button><button class="sw ${c.enabled?'on':''}" data-act="catToggle" data-id="${c.id}" aria-label="Enable ${esc(c.name)}"></button></div>`).join('')}</div>
+  <div style="padding:10px 20px 0"><button class="btn" style="width:100%;border:1px dashed var(--sur4);background:none;color:var(--acc2)" data-act="newCat">${I.plus.replace(/20/g,'18')}New category</button></div>
+  <div class="label" style="padding-top:22px">Tools</div><div class="list">
+   <button class="li" data-act="dupes"><div class="t">Find duplicates</div>${I.chev}</button>
+   <button class="li" data-act="exportAll"><div><div class="t">Export backup</div><div class="s">One .zip with every photo and all tags. AirDrop it, save to Files, or move it to a PC.</div></div>${I.chev}</button>
+   <button class="li" data-act="importZip"><div><div class="t">Import backup</div><div class="s">Merge a backup .zip into this library. Existing photos are kept.</div></div>${I.chev}</button>
+   <div class="li"><div><div class="t">Share sheet import</div><div class="s">On Android/Chrome, share images to this app from any app. On iPhone, use Add photos.</div></div></div>
+   <button class="li" data-act="wipe"><div><div class="t" style="color:var(--acc2)">Delete everything</div><div class="s">${S.photos.length} photos, ${S.items.length} items</div></div></button>
+  </div>
+  <div class="note">Photos live only on this device inside the app. Export a backup before deleting the app or clearing browser data.</div>
+  </div>${nav()}</div>`;
+}
+
+/* ---------- Duplicates ---------- */
+function findDupes(){
+  const ps=S.photos.slice();const pairs=[];const used=new Set();
+  for(let i=0;i<ps.length;i++)for(let j=i+1;j<ps.length;j++){const d=hamming(ps[i].hash,ps[j].hash);if(d<=6&&!used.has(ps[j].id)){pairs.push({a:ps[i],b:ps[j],d});used.add(ps[j].id)}}
+  return pairs.map(({a,b,d})=>{const keep=a.full.size>=b.full.size?a:b;const rm=keep===a?b:a;return {keep,rm,d}});
+}
+function dupesView(){
+  const pairs=S.dupePairs||(S.dupePairs=findDupes().filter(x=>!(S.notDupes||new Set()).has(x.keep.id+'|'+x.rm.id)));
+  return `<div class="screen"><div class="head" style="justify-content:flex-start;gap:12px"><button class="icon-btn" data-act="back" aria-label="Back">${I.back}</button><h1 class="title sm">Duplicates</h1></div>
+  <div class="scroll"><div class="note" style="padding-top:0;padding-bottom:14px">Compared by image hash. ${pairs.length} pair${pairs.length===1?'':'s'} found in ${S.photos.length} photos. Tags and favorites on the removed copy move to the kept one.</div>
+  ${pairs.length?pairs.map((x,i)=>`<div style="margin:0 20px 12px;padding:14px;border-radius:16px;background:var(--sur);display:flex;flex-direction:column;gap:10px"><div style="display:flex;gap:10px"><div style="flex:1"><div style="aspect-ratio:1;border-radius:10px;overflow:hidden;outline:3px solid var(--acc);outline-offset:-3px"><img src="${thumbUrl(x.keep)}" style="width:100%;height:100%;object-fit:cover" alt=""></div><div style="font-size:11px;font-weight:700;padding-top:6px">Keep · ${(x.keep.full.size/1048576).toFixed(1)} MB</div></div><div style="flex:1"><div style="aspect-ratio:1;border-radius:10px;overflow:hidden"><img src="${thumbUrl(x.rm)}" style="width:100%;height:100%;object-fit:cover" alt=""></div><div style="font-size:11px;font-weight:600;color:var(--mut);padding-top:6px">Remove · ${(x.rm.full.size/1048576).toFixed(1)} MB</div></div></div><div style="display:flex;align-items:center;justify-content:space-between"><div style="font-size:12px;font-weight:600;color:var(--mut)">${x.d===0?'Exact match':'Near match'}</div><div style="display:flex;gap:6px"><button class="pill" data-act="dupeSwap" data-i="${i}">Swap</button><button class="pill" data-act="dupeNot" data-i="${i}">Not a dupe</button><button class="pill acc" data-act="dupeRemove" data-i="${i}">Remove</button></div></div></div>`).join(''):'<div class="empty">No duplicates found.</div>'}</div>
+  <div class="bar"><button class="btn pri" data-act="dupeAll" ${pairs.length?'':'disabled'}>Remove all ${pairs.length}</button></div></div>`;
+}
+async function mergeRemove(keep,rm){
+  for(const t of rm.tags)addTag(keep.tags,t.item,t.sub);
+  keep.fav=keep.fav||rm.fav;await savePhoto(keep);
+  for(const it of S.items){let ch=false;if(it.cover===rm.id){it.cover=keep.id;ch=true}for(const s of it.subs)if(s.cover===rm.id){s.cover=keep.id;ch=true}if(ch)await saveItem(it)}
+  await deletePhotos([rm.id]);
+}
+
+/* ---------- sheets ---------- */
+function sheet(title,bodyHTML,onBind){
+  const L=$('#layer');L.innerHTML=`<div class="sheet-bg" data-close><div class="sheet"><div class="h"><h2>${title}</h2><button class="icon-btn" data-close aria-label="Close">${I.x}</button></div><div class="b">${bodyHTML}</div></div></div>`;
+  L.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',e=>{if(b.classList.contains('sheet-bg')?e.target===b:true)closeSheet()}));
+  onBind&&onBind(L.firstElementChild);
+}
+function closeSheet(){$('#layer').innerHTML=''}
+function formSheet(title,fields,onSave,onDelete){
+  const b=`<div class="form">${fields.map(f=>f.type==='select'?`<label>${esc(f.label)}<select name="${f.name}">${f.options.map(o=>`<option value="${esc(o.v)}" ${o.v===f.value?'selected':''}>${esc(o.l)}</option>`).join('')}</select></label>`:`<label>${esc(f.label)}<input name="${f.name}" value="${esc(f.value||'')}" placeholder="${esc(f.ph||'')}" ${f.list?`list="${f.list}"`:''} autocomplete="off"></label>${f.list?`<datalist id="${f.list}">${f.listOpts.map(o=>`<option value="${esc(o)}">`).join('')}</datalist>`:''}`).join('')}
+  <button class="btn pri" data-save>Save</button>${onDelete?`<button class="btn danger" data-del>Delete</button>`:''}</div>`;
+  sheet(title,b,el=>{
+    const first=el.querySelector('input');first&&setTimeout(()=>first.focus(),50);
+    const read=()=>Object.fromEntries(fields.map(f=>[f.name,el.querySelector(`[name="${f.name}"]`).value.trim()]));
+    el.querySelector('[data-save]').onclick=()=>{const v=read();if(fields.some(f=>f.required&&!v[f.name])){toast('Name is required');return}closeSheet();onSave(v)};
+    el.querySelectorAll('input').forEach(i=>i.onkeydown=e=>{if(e.key==='Enter')el.querySelector('[data-save]').click()});
+    if(onDelete)el.querySelector('[data-del]').onclick=()=>{closeSheet();onDelete()};
+  });
+}
+function tagSheet(title,initial,onDone){
+  let draft=initial.map(t=>({...t}));let catId=primaryCat()&&primaryCat().id;let itemId=null;
+  const paint=()=>{
+    const cats=enabledCats();const cat=catById(catId)||cats[0];catId=cat.id;const its=sortedItems(cat);const it=itemById(itemId);
+    $('#tagBody').innerHTML=`<div class="tags" style="justify-content:flex-start">${draft.map((t,i)=>{const l=tagLabel(t);return l?`<button class="tag" data-rm="${i}"><span class="dot" style="background:${colorFor(t.item)}"></span>${esc(l)}<span class="x">${I.x.replace(/18/g,'10')}</span></button>`:''}).join('')||'<span style="font-size:12px;font-weight:600;color:var(--mut)">No tags yet</span>'}</div><div style="height:12px"></div>
+    ${cats.length>1?`<div class="chips" style="padding-bottom:8px">${cats.map(c=>`<button class="pill ${c.id===cat.id?'acc':''}" data-cat="${c.id}">${esc(c.name)}</button>`).join('')}</div>`:''}
+    <div class="label">${esc(cat.name)}</div><div class="hrow">${its.map(i=>`<button class="av ${it&&it.id===i.id?'on':''}" data-item="${i.id}"><div class="c" style="background:${colorFor(i.id)}">${coverHTML(i.cover,i.name[0]||'?')}</div><div>${esc(i.name)}${draft.some(t=>t.item===i.id)?' ✓':''}</div></button>`).join('')||'<div class="note" style="padding:0">No items in this category yet.</div>'}</div>
+    ${it?`<div class="label" style="padding-top:14px">${esc(it.name)} · ${esc(cat.subLabel.toLowerCase())}</div><div class="hrow" style="gap:10px">${[{id:null,name:'No '+cat.subLabel.toLowerCase().replace(/s$/,'')},...it.subs].map(s=>{const on=draft.some(t=>t.item===it.id&&(t.sub||null)===s.id);return `<button class="sq ${on?'on':''}" data-sub="${s.id||''}"><div class="c">${s.id?coverHTML(s.cover,''):'<span style="color:var(--mut)">—</span>'}</div><div>${esc(s.name)}${on?' ✓':''}</div></button>`}).join('')}</div>`:''}
+    <div style="padding:16px 20px 0"><button class="btn pri" style="width:100%" data-done>Apply</button></div>`;
+    const B=$('#tagBody');
+    B.querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>{draft.splice(+b.dataset.rm,1);paint()});
+    B.querySelectorAll('[data-cat]').forEach(b=>b.onclick=()=>{catId=b.dataset.cat;itemId=null;paint()});
+    B.querySelectorAll('[data-item]').forEach(b=>b.onclick=()=>{const i=itemById(b.dataset.item);if(!i.subs.length){const k=draft.findIndex(t=>t.item===i.id);if(k>=0)draft.splice(k,1);else draft.push({item:i.id,sub:null});itemId=null}else itemId=i.id;paint()});
+    B.querySelectorAll('[data-sub]').forEach(b=>b.onclick=()=>{const sub=b.dataset.sub||null;const k=draft.findIndex(t=>t.item===itemId&&(t.sub||null)===sub);if(k>=0)draft.splice(k,1);else addTag(draft,itemId,sub);paint()});
+    B.querySelector('[data-done]').onclick=()=>{closeSheet();onDone(draft)};
+  };
+  sheet(title,'<div id="tagBody"></div>',paint);
+}
+function openViewer(id){
+  const p=photoById(id);if(!p)return;
+  const paint=()=>{const p=photoById(id);if(!p){closeSheet();return}
+   $('#layer').innerHTML=`<div class="viewer"><div class="vh"><button class="icon-btn" data-v="close" aria-label="Close">${I.x}</button><button class="icon-btn" data-v="fav" aria-label="Favorite">${p.fav?I.starF:I.star}</button></div><div class="vi"><img src="${fullUrl(p)}" alt=""></div>
+   <div class="vf"><div class="tags" style="padding-top:4px">${p.tags.map(t=>{const l=tagLabel(t);return l?`<span class="tag"><span class="dot" style="background:${colorFor(t.item)}"></span>${esc(l)}</span>`:''}).join('')||'<span style="font-size:12px;font-weight:600;color:var(--mut)">No tags</span>'}</div><div style="text-align:center;font-size:11px;font-weight:600;color:var(--mut);padding:4px 0 8px">${esc(p.name)} · ${new Date(p.added).toLocaleDateString()}</div>
+   <div class="bar" style="padding-bottom:4px;background:none"><button class="btn sm" data-v="tags">${I.tagI}Tags</button><button class="btn sm" data-v="cover" ${p.tags.length?'':'disabled'}>Set as cover</button><button class="btn sm danger" data-v="del" aria-label="Delete">${I.trash}</button></div></div></div>`;
+   const L=$('#layer');
+   L.querySelector('[data-v="close"]').onclick=()=>{closeSheet();render()};
+   L.querySelector('[data-v="fav"]').onclick=async()=>{p.fav=!p.fav;await savePhoto(p);paint()};
+   L.querySelector('[data-v="tags"]').onclick=()=>tagSheet('Tags',p.tags,async d=>{p.tags=d;await savePhoto(p);paint()});
+   L.querySelector('[data-v="cover"]').onclick=()=>{
+     const opts=[];for(const t of p.tags){const it=itemById(t.item);if(!it)continue;if(!opts.some(o=>o.k==='i'+it.id))opts.push({k:'i'+it.id,l:it.name+' (character cover)',fn:async()=>{it.cover=p.id;await saveItem(it)}});const sb=subOf(it,t.sub);if(sb)opts.push({k:'s'+sb.id,l:it.name+' · '+sb.name,fn:async()=>{sb.cover=p.id;await saveItem(it)}})}
+     sheet('Set as cover for',`<div class="list">${opts.map((o,i)=>`<button class="li" data-o="${i}"><div class="t">${esc(o.l)}</div>${I.chev}</button>`).join('')}</div>`,el=>el.querySelectorAll('[data-o]').forEach(b=>b.onclick=async()=>{await opts[+b.dataset.o].fn();toast('Cover updated');paint()}));
+   };
+   L.querySelector('[data-v="del"]').onclick=async()=>{if(!confirm('Delete this photo from the app?'))return;await deletePhotos([p.id]);closeSheet();render()};
+  };
+  paint();
+}
+
+/* ---------- export / import ---------- */
+function dataJSON(){return {version:1,exported:new Date().toISOString(),cats:S.cats,items:S.items,photos:S.photos.map(p=>({id:p.id,name:p.name,added:p.added,imported:p.imported,w:p.w,h:p.h,hash:p.hash,fav:p.fav,tags:p.tags,file:'photos/'+p.id+'.jpg'}))}}
+async function buildZip(photos,withData){
+  const z=new JSZip();if(withData)z.file('data.json',JSON.stringify(dataJSON(),null,1));
+  const f=z.folder('photos');for(const p of photos)f.file(p.id+'.jpg',p.full);
+  return z.generateAsync({type:'blob',compression:'STORE'});
+}
+async function shareOrDownload(blob,name){
+  const file=new File([blob],name,{type:'application/zip'});
+  if(navigator.canShare&&navigator.canShare({files:[file]})){try{await navigator.share({files:[file],title:name});return}catch(e){if(e.name==='AbortError')return}}
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},2000);
+}
+async function importZip(file){
+  showProgress(0,1);
+  try{
+    const z=await JSZip.loadAsync(file);const dj=z.file('data.json');
+    if(!dj){hideProgress();toast('Not a Photo Sorter backup');return}
+    const d=JSON.parse(await dj.async('string'));let n=0,t=d.photos.length;
+    for(const c of d.cats)if(!catById(c.id)){await saveCat(c);S.cats.push(c)}
+    for(const i of d.items){const ex=itemById(i.id);if(!ex){await saveItem(i);S.items.push(i)}}
+    for(const q of d.photos){showProgress(++n,t);if(photoById(q.id))continue;const zf=z.file(q.file);if(!zf)continue;const full=await zf.async('blob');const im=await loadImage(full);const thumb=await toBlob(draw(im,320),.8);const p={...q,full:new Blob([full],{type:'image/jpeg'}),thumb};delete p.file;await DB.put('photos',p);S.photos.push(p)}
+    S.photos.sort(byNewest);hideProgress();toast('Backup imported');render();
+  }catch(e){hideProgress();toast('Could not read that file')}
+}
+
+/* ---------- actions ---------- */
+const actions={
+  add:()=>$('#picker').click(),
+  galFilter:b=>{S.galFilter=b.dataset.k;render()},
+  tile:b=>{if(S.select){const id=b.dataset.id;S.select.has(id)?S.select.delete(id):S.select.add(id);render()}else openViewer(b.dataset.id)},
+  selStart:()=>{S.select=new Set();render()},selCancel:()=>{S.select=null;render()},
+  selAll:()=>{const list=S.galFilter==='unsorted'?S.photos.filter(p=>!p.tags.length):S.galFilter==='tagged'?S.photos.filter(p=>p.tags.length):S.photos;S.select=S.select.size===list.length?new Set():new Set(list.map(p=>p.id));render()},
+  selTag:()=>tagSheet(`Tag ${S.select.size} photos`,[],async d=>{for(const id of S.select){const p=photoById(id);for(const t of d)addTag(p.tags,t.item,t.sub);await savePhoto(p)}toast('Tags added');S.select=null;render()}),
+  selFav:async()=>{const ps=[...S.select].map(photoById);const all=ps.every(p=>p.fav);for(const p of ps){p.fav=!all;await savePhoto(p)}toast(all?'Removed from favorites':'Added to favorites');S.select=null;render()},
+  selExport:async()=>{toast('Preparing zip…');const blob=await buildZip([...S.select].map(photoById),false);shareOrDownload(blob,'photos.zip')},
+  selDelete:async()=>{if(!confirm(`Delete ${S.select.size} photos from the app?`))return;await deletePhotos([...S.select]);S.select=null;render()},
+  catSort:b=>{S.catSort[S.catView]=b.dataset.k;render()},
+  newItem:()=>newItemSheet(S.catView),
+  openItem:b=>{S.history.push({view:S.view,catView:S.catView});go('item',{itemId:b.dataset.id,subId:null})},
+  itemUp:b=>moveItem(b.dataset.id,-1),itemDown:b=>moveItem(b.dataset.id,1),
+  back:()=>{const h=S.history.pop();S.dupePairs=null;if(h)go(h.view,{catView:h.catView});else go('gallery')},
+  editItem:()=>{const it=itemById(S.itemId);const cat=catById(it.cat);itemForm(cat,it)},
+  newSub:()=>subForm(itemById(S.itemId)),
+  pickSub:b=>{S.subId=b.dataset.id||null;render()},
+  editSub:b=>subForm(itemById(S.itemId),subOf(itemById(S.itemId),b.dataset.id)),
+  sortFilter:b=>startSort(b.dataset.k),
+  closeSort:()=>go('gallery'),
+  sortCat:b=>{S.sortCat=b.dataset.k;S.sortItem=null;render()},
+  sortItem:b=>{const i=itemById(b.dataset.id);if(!i.subs.length){toggleDraft(i.id,null);S.sortItem=null}else S.sortItem=i.id;render()},
+  sortSub:b=>{toggleDraft(S.sortItem,b.dataset.id||null);render()},
+  draftRm:b=>{S.draft.splice(+b.dataset.i,1);render()},
+  newItemSort:()=>newItemSheet(S.sortCat,i=>{S.sortItem=i.subs.length?i.id:null;if(!i.subs.length)toggleDraft(i.id,null);render()}),
+  newSubSort:()=>subForm(itemById(S.sortItem),null,s=>{toggleDraft(S.sortItem,s.id);render()}),
+  skip:()=>{S.sortIdx++;if(S.sortIdx>=S.sortQueue.length){toast('End of queue');S.sortIdx=S.sortQueue.length}loadDraft();render()},
+  saveNext:async()=>{const p=photoById(S.sortQueue[S.sortIdx]);if(p){p.tags=S.draft.map(t=>({...t}));await savePhoto(p)}S.sortIdx++;loadDraft();render()},
+  favFilter:b=>{S.favFilter=b.dataset.k;render()},
+  shuffle:b=>{S.history.push({view:S.view,catView:S.catView});S.shufFilter=b.dataset.k;pickRandom();go('shuffle')},
+  shufFilter:b=>{S.shufFilter=b.dataset.k;pickRandom();render()},
+  shufNext:()=>{pickRandom();render()},
+  shufFav:async()=>{const p=photoById(S.shufId);p.fav=!p.fav;await savePhoto(p);render()},
+  shufOpen:()=>openViewer(S.shufId),
+  editCat:b=>catForm(catById(b.dataset.id)),
+  newCat:()=>catForm(null),
+  catToggle:async b=>{const c=catById(b.dataset.id);if(c.enabled&&enabledCats().length===1){toast('Keep at least one category on');return}c.enabled=!c.enabled;await saveCat(c);render()},
+  catUp:async b=>{const cs=S.cats.slice().sort((a,b)=>a.order-b.order);const i=cs.findIndex(c=>c.id===b.dataset.id);if(i>0){[cs[i-1].order,cs[i].order]=[cs[i].order,cs[i-1].order];await DB.putMany('cats',cs);render()}},
+  dupes:()=>{S.history.push({view:'more'});S.dupePairs=null;go('dupes')},
+  dupeSwap:b=>{const x=S.dupePairs[+b.dataset.i];[x.keep,x.rm]=[x.rm,x.keep];render()},
+  dupeNot:b=>{const x=S.dupePairs[+b.dataset.i];(S.notDupes=S.notDupes||new Set()).add(x.keep.id+'|'+x.rm.id).add(x.rm.id+'|'+x.keep.id);S.dupePairs.splice(+b.dataset.i,1);render()},
+  dupeRemove:async b=>{const x=S.dupePairs[+b.dataset.i];await mergeRemove(x.keep,x.rm);S.dupePairs.splice(+b.dataset.i,1);render()},
+  dupeAll:async()=>{if(!confirm(`Remove ${S.dupePairs.length} duplicate photos?`))return;for(const x of S.dupePairs)await mergeRemove(x.keep,x.rm);S.dupePairs=[];render()},
+  exportAll:async()=>{if(!S.photos.length){toast('Nothing to export');return}toast('Preparing backup…');const blob=await buildZip(S.photos,true);shareOrDownload(blob,'photo-sorter-backup-'+new Date().toISOString().slice(0,10)+'.zip')},
+  importZip:()=>$('#zipPicker').click(),
+  wipe:async()=>{if(!confirm('Delete every photo, character and tag in this app? Export a backup first if you want to keep them.'))return;if(!confirm('Really delete everything?'))return;await DB.clear('photos');await DB.clear('items');await DB.clear('cats');S.photos=[];S.items=[];S.cats=[];await seed();go('gallery')},
+};
+function newItemSheet(catId,after){const cat=catById(catId);itemForm(cat,null,after)}
+function itemForm(cat,it,after){
+  const groups=[...new Set(S.items.filter(i=>i.cat===cat.id).map(i=>i.group).filter(Boolean))];
+  const showItems=S.cats.find(c=>c.name.toLowerCase()==='shows');if(showItems)itemsOf(showItems.id).forEach(i=>{if(!groups.includes(i.name))groups.push(i.name)});
+  const fields=[{name:'name',label:'Name',value:it?it.name:'',required:true,ph:cat.name.replace(/s$/,'')+' name'}];
+  if(cat.groupLabel)fields.push({name:'group',label:cat.groupLabel,value:it?it.group:'',ph:'Optional',list:'grp',listOpts:groups});
+  formSheet(it?'Edit '+cat.name.toLowerCase().replace(/s$/,''):'New '+cat.name.toLowerCase().replace(/s$/,''),fields,async v=>{
+    if(it){it.name=v.name;it.group=v.group||'';await saveItem(it)}
+    else{const n={id:uid(),cat:cat.id,name:v.name,group:v.group||'',cover:null,subs:[],order:itemsOf(cat.id).length,added:Date.now()};await saveItem(n);S.items.push(n);it=n}
+    render();after&&after(it);
+  },it?async()=>{if(!confirm(`Delete ${it.name}? Photos stay, but lose this tag.`))return;for(const p of S.photos){const b=p.tags.length;p.tags=p.tags.filter(t=>t.item!==it.id);if(b!==p.tags.length)await savePhoto(p)}await DB.del('items',it.id);S.items=S.items.filter(i=>i.id!==it.id);actions.back()}:null);
+}
+function subForm(it,sub,after){
+  const cat=catById(it.cat);const one=cat.subLabel.replace(/s$/,'');
+  formSheet(sub?'Edit '+one.toLowerCase():'New '+one.toLowerCase()+' for '+it.name,[{name:'name',label:'Name',value:sub?sub.name:'',required:true,ph:one+' name'}],async v=>{
+    if(sub)sub.name=v.name;else{sub={id:uid(),name:v.name,cover:null};it.subs.push(sub)}
+    await saveItem(it);render();after&&after(sub);
+  },sub?async()=>{if(!confirm(`Delete ${sub.name}? Photos keep the ${it.name} tag.`))return;for(const p of S.photos){let ch=false;p.tags.forEach(t=>{if(t.item===it.id&&t.sub===sub.id){t.sub=null;ch=true}});if(ch)await savePhoto(p)}it.subs=it.subs.filter(s=>s.id!==sub.id);await saveItem(it);S.subId=null;render()}:null);
+}
+function catForm(c){
+  formSheet(c?'Edit category':'New category',[{name:'name',label:'Name',value:c?c.name:'',required:true,ph:'Characters, Shows, Artists…'},{name:'subLabel',label:'Sub-bucket name',value:c?c.subLabel:'',ph:'Outfits, Seasons, Styles…',required:true},{name:'groupLabel',label:'Group items by (optional)',value:c?c.groupLabel:'',ph:'Show, Studio…'}],async v=>{
+    if(c){Object.assign(c,{name:v.name,subLabel:v.subLabel,groupLabel:v.groupLabel});await saveCat(c)}
+    else{const n={id:uid(),name:v.name,subLabel:v.subLabel,groupLabel:v.groupLabel,enabled:true,order:S.cats.length};await saveCat(n);S.cats.push(n)}
+    render();
+  },c?async()=>{if(!confirm(`Delete ${c.name} and all its items? Photos stay, but lose those tags.`))return;const ids=new Set(itemsOf(c.id).map(i=>i.id));for(const p of S.photos){const b=p.tags.length;p.tags=p.tags.filter(t=>!ids.has(t.item));if(b!==p.tags.length)await savePhoto(p)}for(const id of ids)await DB.del('items',id);S.items=S.items.filter(i=>!ids.has(i.id));await DB.del('cats',c.id);S.cats=S.cats.filter(x=>x.id!==c.id);await seed();render()}:null);
+}
+async function moveItem(id,dir){const it=itemById(id);const its=sortedItems(catById(it.cat));const i=its.indexOf(it),j=i+dir;if(j<0||j>=its.length)return;its.forEach((x,k)=>x.order=k);[its[i].order,its[j].order]=[its[j].order,its[i].order];await DB.putMany('items',its);render()}
+
+/* ---------- long-press to select ---------- */
+let lp;
+document.addEventListener('pointerdown',e=>{const t=e.target.closest('.tile');if(!t||S.select||S.view!=='gallery')return;lp=setTimeout(()=>{S.select=new Set([t.dataset.id]);render();navigator.vibrate&&navigator.vibrate(10)},450)});
+['pointerup','pointercancel','pointermove'].forEach(ev=>document.addEventListener(ev,()=>clearTimeout(lp)));
+
+/* ---------- share-target inbox ---------- */
+async function drainShareInbox(){
+  if(!('caches' in window))return;
+  try{const c=await caches.open('share-inbox');const keys=await c.keys();if(!keys.length)return;const files=[];for(const k of keys){const r=await c.match(k);const b=await r.blob();files.push(new File([b],k.url.split('/').pop()||'shared.jpg',{type:b.type||'image/jpeg'}));await c.delete(k)}if(files.length)await importFiles(files)}catch(e){}
+}
+
+/* ---------- boot ---------- */
+$('#picker').onchange=e=>{importFiles(e.target.files);e.target.value=''};
+$('#zipPicker').onchange=e=>{if(e.target.files[0])importZip(e.target.files[0]);e.target.value=''};
+(async()=>{
+  await load();render();
+  if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(()=>{});
+  if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('./sw.js').catch(()=>{});
+  drainShareInbox();
+  if(location.search.includes('shared'))history.replaceState(null,'',location.pathname);
+})();
+</script>
+</body>
+</html>
