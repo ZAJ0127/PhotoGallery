@@ -63,6 +63,8 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--acc);outline-offset
 .card .nm{font-size:15px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .card .mt{font-size:12px;font-weight:600;color:var(--mut)}
 .card.dim{opacity:.55}
+.card.hide .cov{outline:2px dashed var(--acc2);outline-offset:-2px;opacity:.5}
+.pill.hide{text-decoration:line-through;color:var(--acc2);background:var(--sur)}
 .month{font-size:13px;font-weight:800;color:var(--mut);padding:10px 20px 8px;display:flex;justify-content:space-between;align-items:baseline;height:36px}
 .tabbar{display:flex;justify-content:space-around;align-items:flex-start;border-top:1px solid var(--line);padding:10px 4px calc(var(--sab) + 12px);background:var(--bg2);flex-shrink:0}
 .tab{display:flex;flex-direction:column;align-items:center;gap:4px;width:64px;color:var(--mut);font-size:11px;font-weight:700;text-decoration:none}
@@ -209,7 +211,7 @@ const isQuota=e=>e&&(e.name==='QuotaExceededError'||/quota/i.test(String(e.messa
 /* ---------- state ---------- */
 const S={photos:[],items:[],cats:[],view:'gallery',galFilter:'all',galGroup:'month',select:null,catSort:{},itemId:null,subId:null,typeId:null,
   sortFilter:'unsorted',sortQueue:[],sortIdx:0,sortCat:null,sortItem:null,draft:[],favFilter:'all',shufFilter:'all',shufId:null,
-  catView:null,history:[],recent:[],collapsed:{},q:'',counts:new Map(),subCounts:new Map(),lastBatch:null};
+  catView:null,history:[],hideTypes:new Set(),galHide:new Set(),recent:[],collapsed:{},q:'',counts:new Map(),subCounts:new Map(),lastBatch:null};
 const photoMap=new Map();
 const photoById=id=>photoMap.get(id);
 const itemById=id=>S.items.find(i=>i.id===id);
@@ -516,6 +518,7 @@ const groupKey=p=>{const d=new Date(p.added);return S.galGroup==='day'?d.toLocal
 function galleryList(){
   let list=S.galFilter==='unsorted'?S.photos.filter(p=>!p.tags.length):S.galFilter==='tagged'?S.photos.filter(p=>p.tags.length):S.galFilter==='last'?S.photos.filter(p=>p.batch===S.lastBatch):S.photos;
   if(S.galType)list=list.filter(p=>p.tags.some(t=>t.item===S.galType));
+  if(S.galHide.size)list=list.filter(p=>!p.tags.some(t=>S.galHide.has(t.item)));
   return list;
 }
 function gallery(){
@@ -525,7 +528,7 @@ function gallery(){
   const chip=(k,l,n)=>`<button class="pill ${S.galFilter===k?'on':''}" data-act="galFilter" data-k="${k}">${l}${n!==undefined?' · '+n:''}</button>`;
   const lastN=S.lastBatch?S.photos.reduce((n,p)=>n+(p.batch===S.lastBatch?1:0),0):0;
   const body=S.photos.length?(list.length?vgrid('gal',list,{group:groupKey,selSet:sel}):'<div class="empty">Nothing matches this filter.</div>'):`<div class="empty">No photos yet.<br>Tap Add to pick from your library, choose Browse in the picker to import a whole folder from Files, or import a zip of images from More.</div>`;
-  return `<div class="screen">${head}<div class="chips">${chip('all','All',S.photos.length)}${chip('unsorted','Unsorted',untagged)}${chip('tagged','Tagged',S.photos.length-untagged)}${lastN?chip('last','Last import',lastN):''}${quickCats().flatMap(c=>sortedItems(c)).map(i=>`<button class="pill ${S.galType===i.id?'acc':''}" data-act="galType" data-k="${i.id}">${esc(i.name)}</button>`).join('')}<button class="pill" data-act="galGroup" style="margin-left:auto">${S.galGroup==='day'?'By day':'By month'}</button></div><div class="scroll">${body}</div>${sel?selBar():nav()}</div>`;
+  return `<div class="screen">${head}<div class="chips">${chip('all','All',S.photos.length)}${chip('unsorted','Unsorted',untagged)}${chip('tagged','Tagged',S.photos.length-untagged)}${lastN?chip('last','Last import',lastN):''}${quickCats().flatMap(c=>sortedItems(c)).length?'<span class="note" style="padding:0;align-self:center;white-space:nowrap">tap: only · tap again: hide</span>':''}${quickCats().flatMap(c=>sortedItems(c)).map(i=>`<button class="pill ${S.galType===i.id?'acc':S.galHide.has(i.id)?'hide':''}" data-act="galType" data-k="${i.id}">${S.galHide.has(i.id)?'hide ':''}${esc(i.name)}</button>`).join('')}<button class="pill" data-act="galGroup" style="margin-left:auto">${S.galGroup==='day'?'By day':'By month'}</button></div><div class="scroll">${body}</div>${sel?selBar():nav()}</div>`;
 }
 
 /* ---------- Search ---------- */
@@ -588,10 +591,11 @@ function itemView(){
   const all=S.photos.filter(p=>p.tags.some(t=>t.item===it.id));
   const bySub=S.subId?all.filter(p=>p.tags.some(t=>t.item===it.id&&t.sub===S.subId)):all;
   const typeIt=S.typeId&&itemById(S.typeId);
-  const shown=typeIt?bySub.filter(p=>p.tags.some(t=>t.item===typeIt.id)):bySub;
-  const sub=subOf(it,S.subId);
-  const folders=quickCats().map(c=>{const fs=sortedItems(c).map(q=>{const ps=bySub.filter(p=>p.tags.some(t=>t.item===q.id));return {q,ps}}).filter(x=>x.ps.length);return fs.length?`<div class="row-head" style="padding-top:4px"><div class="label" style="padding:0">${esc(c.name)}${sub?' · '+esc(sub.name):''}</div>${typeIt?`<button class="link" data-act="pickType" data-id="">Show all</button>`:''}</div><div class="grid2" style="margin-bottom:18px">${fs.map(({q,ps})=>{const tc=it.typeCovers&&it.typeCovers[q.id];const cid=tc&&photoById(tc.id)?tc.id:ps[0].id;return `<button class="card" data-act="pickType" data-id="${q.id}" style="${S.typeId===q.id?'outline:2px solid var(--acc);outline-offset:4px;border-radius:16px':''}"><div class="cov" style="aspect-ratio:4/3;background:var(--sur3)">${coverImg(cid,tc&&tc.id===cid?tc.crop:null)}</div><div class="nm">${esc(q.name)} <span style="color:var(--mut);font-weight:600">· ${ps.length}</span></div></button>`}).join('')}</div>`:''}).join('');
-  const crumbs=[it.name,sub&&sub.name,typeIt&&typeIt.name].filter(Boolean).join(' · ');
+  let shown=typeIt?bySub.filter(p=>p.tags.some(t=>t.item===typeIt.id)):bySub;
+  if(S.hideTypes.size)shown=shown.filter(p=>!p.tags.some(t=>S.hideTypes.has(t.item)));
+  const sub=subOf(it,S.subId);const hidden=[...S.hideTypes].map(itemById).filter(Boolean);
+  const folders=quickCats().map(c=>{const fs=sortedItems(c).map(q=>{const ps=bySub.filter(p=>p.tags.some(t=>t.item===q.id));return {q,ps}}).filter(x=>x.ps.length);return fs.length?`<div class="row-head" style="padding-top:4px"><div class="label" style="padding:0">${esc(c.name)}${sub?' · '+esc(sub.name):''}</div>${typeIt?`<button class="link" data-act="pickType" data-id="">Show all</button>`:''}</div><div class="grid2" style="margin-bottom:18px">${fs.map(({q,ps})=>{const tc=it.typeCovers&&it.typeCovers[q.id];const cid=tc&&photoById(tc.id)?tc.id:ps[0].id;return `<button class="card ${S.hideTypes.has(q.id)?'hide':''}" data-act="pickType" data-id="${q.id}" style="${S.typeId===q.id?'outline:2px solid var(--acc);outline-offset:4px;border-radius:16px':''}"><div class="cov" style="aspect-ratio:4/3;background:var(--sur3)">${coverImg(cid,tc&&tc.id===cid?tc.crop:null)}</div><div class="nm">${S.hideTypes.has(q.id)?'hidden · ':''}${esc(q.name)} <span style="color:var(--mut);font-weight:600">· ${ps.length}</span></div></button>`}).join('')}</div><div class="note" style="padding-top:0;padding-bottom:12px">Tap a folder to show only those, tap again to hide them, once more to clear.</div>`:''}).join('');
+  const crumbs=[it.name,sub&&sub.name,typeIt&&typeIt.name,...hidden.map(h=>'not '+h.name)].filter(Boolean).join(' · ');
   const childCats=S.cats.filter(c=>c.groupCat===cat.id&&c.enabled);
   const head=selHead(`<button class="icon-btn" data-act="back" aria-label="Back">${I.back}</button>`,`<button class="pill" data-act="selStart" ${shown.length?'':'disabled'}>Select</button><button class="icon-btn" data-act="editItem" aria-label="Edit">${I.edit}</button>`);
   const sortKey=it.subs.length?'nosub:'+it.id:(childCats.length?'nogroup:'+it.id+':'+childCats[0].id:null);
@@ -603,7 +607,7 @@ function itemView(){
    ${it.subs.length?`<div class="grid2" style="margin-bottom:18px">${it.subs.map(s=>{const n=subCount(it.id,s.id);return `<button class="card ${n?'':'dim'}" data-act="pickSub" data-id="${s.id}" data-lp="sub" style="${S.subId===s.id?'outline:2px solid var(--acc);outline-offset:4px;border-radius:16px':''}"><div class="cov" style="aspect-ratio:4/3;background:var(--sur3)">${coverHTML(s.cover,'',s.coverCrop)}</div><div class="nm">${esc(s.name)} <span style="color:var(--mut);font-weight:600">· ${n}</span></div></button>`}).join('')}</div>`:''}
    ${childCats.map(cc=>{const kids=sortedItems(cc).filter(k=>k.groupId===it.id);return kids.length?`<div class="row-head"><div class="label" style="padding:0">${esc(cc.name)}</div><span style="font-size:12px;font-weight:600;color:var(--mut)">${kids.length}</span></div><div class="grid2" style="margin-bottom:18px">${kids.map(k=>itemCard(k,cc)).join('')}</div>`:''}).join('')}
    ${folders}
-   <div class="row-head"><div class="label" style="padding:0">${sub||typeIt?esc(crumbs):'All '+esc(it.name)+' photos'}</div>${sub||typeIt?`<button class="link" data-act="clearFilters">Show all</button>${sub?`<button class="link" style="margin-left:12px" data-act="editSub" data-id="${sub.id}">Edit</button>${sub.cover?`<button class="link" style="margin-left:12px" data-act="adjustSubCover" data-id="${sub.id}">Adjust cover</button>`:''}`:''}`:'<span style="font-size:12px;font-weight:600;color:var(--mut)">Newest first</span>'}</div>
+   <div class="row-head"><div class="label" style="padding:0">${sub||typeIt||hidden.length?esc(crumbs):'All '+esc(it.name)+' photos'}</div>${sub||typeIt||hidden.length?`<button class="link" data-act="clearFilters">Show all</button>${sub?`<button class="link" style="margin-left:12px" data-act="editSub" data-id="${sub.id}">Edit</button>${sub.cover?`<button class="link" style="margin-left:12px" data-act="adjustSubCover" data-id="${sub.id}">Adjust cover</button>`:''}`:''}`:'<span style="font-size:12px;font-weight:600;color:var(--mut)">Newest first</span>'}</div>
    ${shown.length?vgrid('item',shown,{selSet:S.select}):`<div class="empty">Nothing here yet. Use Sort to tag photos.</div>`}
   </div>${S.select?selBar():nav()}</div>`;
 }
@@ -887,7 +891,7 @@ const actions={
   add:()=>$('#picker').click(),
   search:()=>{S.history.push({view:S.view,catView:S.catView,itemId:S.itemId,subId:S.subId,typeId:S.typeId});go('search');const q=$('#q');if(q)setTimeout(()=>q.focus(),50)},
   galFilter:b=>{S.galFilter=b.dataset.k;render()},
-  galType:b=>{S.galType=S.galType===b.dataset.k?null:b.dataset.k;render()},
+  galType:b=>{const k=b.dataset.k;if(S.galType===k){S.galType=null;S.galHide.add(k)}else if(S.galHide.has(k))S.galHide.delete(k);else{S.galType=k;S.galHide.delete(k)}render()},
   galGroup:()=>{S.galGroup=S.galGroup==='day'?'month':'day';render()},
   tile:b=>{if(S.select){const id=b.dataset.id;S.select.has(id)?S.select.delete(id):S.select.add(id);b.classList.toggle('sel',S.select.has(id));const chk=b.querySelector('.chk');if(chk)chk.innerHTML=S.select.has(id)?I.check:'';updateSelBar()}else openViewer(b.dataset.id,visibleIds())},
   selStart:()=>{S.select=new Set();render()},selCancel:()=>{S.select=null;render()},
@@ -902,13 +906,13 @@ const actions={
   collapse:b=>{const k=S.catView+'|'+b.dataset.k;S.collapsed[k]=!S.collapsed[k];render()},
   reorder:()=>reorderSheet(catById(S.catView)),
   newItem:()=>newItemSheet(S.catView),
-  openItem:b=>{S.history.push({view:S.view,catView:S.catView,itemId:S.itemId,subId:S.subId,typeId:S.typeId});go('item',{itemId:b.dataset.id,subId:null,typeId:null})},
+  openItem:b=>{S.history.push({view:S.view,catView:S.catView,itemId:S.itemId,subId:S.subId,typeId:S.typeId});go('item',{itemId:b.dataset.id,subId:null,typeId:null,hideTypes:new Set()})},
   back:()=>{const h=S.history.pop();S.dupePairs=null;if(h)go(h.view,{catView:h.catView,itemId:h.itemId,subId:h.subId||null,typeId:h.typeId||null});else go('gallery')},
   editItem:()=>{const it=itemById(S.itemId);itemForm(catById(it.cat),it)},
   newSub:()=>subForm(itemById(S.itemId)),
   pickSub:b=>{S.subId=S.subId===b.dataset.id?null:(b.dataset.id||null);render()},
-  pickType:b=>{S.typeId=b.dataset.id||null;render()},
-  clearFilters:()=>{S.subId=null;S.typeId=null;render()},
+  pickType:b=>{const k=b.dataset.id;if(!k){S.typeId=null;render();return}if(S.typeId===k){S.typeId=null;S.hideTypes.add(k)}else if(S.hideTypes.has(k))S.hideTypes.delete(k);else{S.typeId=k;S.hideTypes.delete(k)}render()},
+  clearFilters:()=>{S.subId=null;S.typeId=null;S.hideTypes.clear();render()},
   editSub:b=>subForm(itemById(S.itemId),subOf(itemById(S.itemId),b.dataset.id)),
   adjustCover:()=>{const it=itemById(S.itemId);const p=photoById(it.cover);if(!p){toast('Open a photo of '+it.name+' and tap Set as cover');return}pickCover(p,1,it.coverCrop,async crop=>{it.coverCrop=crop;await saveItem(it);render()})},
   adjustSubCover:b=>{const it=itemById(S.itemId);const sb=subOf(it,b.dataset.id);const p=photoById(sb.cover);if(!p){toast('Open a photo tagged '+sb.name+' and tap Set as cover');return}pickCover(p,4/3,sb.coverCrop,async crop=>{sb.coverCrop=crop;await saveItem(it);render()})},
