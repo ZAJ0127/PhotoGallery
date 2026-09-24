@@ -26,12 +26,12 @@ html,body{height:100%;margin:0;background:var(--bg);color:var(--txt);font-family
 body{display:flex;flex-direction:column;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 button,input,select{font-family:inherit;font-size:inherit;color:inherit}
 button{border:0;background:none;padding:0;cursor:pointer}
-input,select{background:var(--sur2);border:0;border-radius:12px;padding:12px 14px;width:100%;color:var(--txt);font-weight:600;outline:none}
+input,select{background:var(--sur2);border:0;border-radius:12px;padding:12px 14px;width:100%;color:var(--txt);font-weight:600;outline:none;-webkit-user-select:text;user-select:text}
 input:focus,select:focus{box-shadow:0 0 0 2px var(--acc)}
 button:focus-visible,a:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
 #app{flex:1;display:flex;flex-direction:column;min-height:0}
 .screen{flex:1;display:flex;flex-direction:column;min-height:0}
-.scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:24px}
+.scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:24px;position:relative}
 .head{padding:calc(var(--sat) + 14px) 20px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-shrink:0}
 .title{font-size:30px;font-weight:800;letter-spacing:-.02em;margin:0}
 .title.sm{font-size:20px}
@@ -40,9 +40,9 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--acc);outline-offset
 .pill{height:36px;padding:0 14px;border-radius:18px;background:var(--sur);font-size:13px;font-weight:700;display:inline-flex;align-items:center;gap:6px;color:var(--txt2);flex-shrink:0;white-space:nowrap}
 .pill.on{background:var(--txt);color:#111114}
 .pill.acc{background:var(--acc);color:#111114}
+.pill.tall{height:40px}
 .chips{display:flex;gap:8px;padding:0 20px 14px;overflow-x:auto;scrollbar-width:none;flex-shrink:0}
 .chips::-webkit-scrollbar{display:none}
-.section{padding:0 20px}
 .label{font-size:13px;font-weight:800;color:var(--mut);padding:0 20px 8px}
 .row-head{display:flex;align-items:baseline;justify-content:space-between;padding:0 20px 8px}
 .link{color:var(--acc2);font-size:13px;font-weight:700}
@@ -51,17 +51,19 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--acc);outline-offset
 .tile{display:flex;flex-direction:column;gap:3px;background:none;text-align:left;color:inherit;min-width:0}
 .tile .img{position:relative;aspect-ratio:1;background:var(--sur2);border-radius:4px;overflow:hidden}
 .tile .img img{width:100%;height:100%;object-fit:cover;display:block}
+.tile .img img:not([src]){visibility:hidden}
 .tile.sel .img{outline:3px solid var(--acc);outline-offset:-3px}
 .tile .ind{display:flex;gap:3px;align-items:center;height:12px}
 .dot{width:8px;height:8px;border-radius:4px;flex-shrink:0}
 .chk{position:absolute;top:6px;right:6px;width:22px;height:22px;border-radius:11px;border:2px solid #fff;opacity:.85}
 .tile.sel .chk{background:var(--acc);border-color:var(--acc);display:flex;align-items:center;justify-content:center;opacity:1}
 .card{display:flex;flex-direction:column;gap:8px;text-align:left;color:inherit;min-width:0}
-.card .cov{aspect-ratio:1;border-radius:16px;background:var(--sur2);overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:40px;font-weight:800;color:#111114}
+.card .cov{aspect-ratio:1;border-radius:16px;background:var(--sur2);overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:40px;font-weight:800;color:#111114;position:relative}
 .card .cov img{width:100%;height:100%;object-fit:cover;display:block}
 .card .nm{font-size:15px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .card .mt{font-size:12px;font-weight:600;color:var(--mut)}
-.month{font-size:13px;font-weight:800;color:var(--mut);padding:10px 20px 8px}
+.card.dim{opacity:.55}
+.month{font-size:13px;font-weight:800;color:var(--mut);padding:10px 20px 8px;display:flex;justify-content:space-between;align-items:baseline;height:36px}
 .tabbar{display:flex;justify-content:space-around;align-items:flex-start;border-top:1px solid var(--line);padding:10px 4px calc(var(--sab) + 12px);background:var(--bg2);flex-shrink:0}
 .tab{display:flex;flex-direction:column;align-items:center;gap:4px;width:64px;color:var(--mut);font-size:11px;font-weight:700;text-decoration:none}
 .tab.on{color:var(--acc);font-weight:800}
@@ -72,20 +74,20 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--acc);outline-offset
 .btn.sm{height:40px;font-size:13px;border-radius:12px;padding:0 12px;flex:0 0 auto}
 .btn.danger{color:var(--acc2)}
 .btn:disabled{opacity:.4}
-.stage{margin:0 20px;border-radius:20px;background:var(--sur2);overflow:hidden;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.stage{margin:0 20px;border-radius:20px;background:var(--sur2);overflow:hidden;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:height .2s}
 .stage img{max-width:100%;max-height:100%;object-fit:contain;display:block}
 .tags{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;padding:10px 20px 0;min-height:38px}
-.tag{display:inline-flex;align-items:center;gap:6px;padding:5px 8px 5px 8px;border-radius:14px;background:var(--sur3);font-size:12px;font-weight:700}
+.tag{display:inline-flex;align-items:center;gap:6px;padding:5px 8px;border-radius:14px;background:var(--sur3);font-size:12px;font-weight:700}
 .tag .x{width:16px;height:16px;border-radius:8px;background:var(--sur4);display:flex;align-items:center;justify-content:center;color:var(--txt2)}
 .hrow{display:flex;gap:12px;padding:0 20px;overflow-x:auto;scrollbar-width:none;flex-shrink:0}
 .hrow::-webkit-scrollbar{display:none}
 .av{display:flex;flex-direction:column;align-items:center;gap:6px;width:70px;flex-shrink:0;color:var(--txt2);font-size:12px;font-weight:600}
-.av .c{width:64px;height:64px;border-radius:32px;background:var(--sur3);border:3px solid transparent;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800;color:#111114;overflow:hidden}
+.av .c{width:64px;height:64px;border-radius:32px;background:var(--sur3);border:3px solid transparent;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800;color:#111114;overflow:hidden;position:relative}
 .av .c img{width:100%;height:100%;object-fit:cover}
 .av.on{color:var(--txt);font-weight:700}
 .av.on .c{border-color:var(--txt);box-shadow:0 0 0 3px var(--acc)}
 .sq{display:flex;flex-direction:column;gap:6px;width:96px;flex-shrink:0;color:var(--txt2);font-size:12px;font-weight:600;text-align:left}
-.sq .c{width:96px;height:96px;border-radius:14px;background:var(--sur3);border:2px solid transparent;overflow:hidden;display:flex;align-items:center;justify-content:center;color:var(--mut);font-size:11px}
+.sq .c{width:96px;height:96px;border-radius:14px;background:var(--sur3);border:2px solid transparent;overflow:hidden;display:flex;align-items:center;justify-content:center;color:var(--mut);font-size:11px;position:relative}
 .sq .c img{width:100%;height:100%;object-fit:cover}
 .sq.on{color:var(--txt);font-weight:700}
 .sq.on .c{border-color:var(--acc)}
@@ -112,17 +114,28 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--acc);outline-offset
 .viewer .vi{flex:1;display:flex;align-items:center;justify-content:center;min-height:0}
 .viewer .vi img{max-width:100%;max-height:100%;object-fit:contain}
 .viewer .vf{padding:8px 0 calc(var(--sab) + 10px);background:rgba(17,17,20,.9)}
-.toast{position:fixed;left:50%;bottom:calc(var(--sab) + 90px);transform:translateX(-50%);background:var(--txt);color:#111114;padding:10px 16px;border-radius:14px;font-size:13px;font-weight:700;z-index:40;pointer-events:none;opacity:0;transition:opacity .2s}
-.toast.on{opacity:1}
+.toast{position:fixed;left:50%;bottom:calc(var(--sab) + 90px);transform:translateX(-50%);background:var(--txt);color:#111114;padding:10px 12px 10px 16px;border-radius:14px;font-size:13px;font-weight:700;z-index:40;opacity:0;transition:opacity .2s;pointer-events:none;display:flex;align-items:center;gap:12px;max-width:calc(100% - 40px)}
+.toast.on{opacity:1;pointer-events:auto}
+.toast button{background:#111114;color:#fff;border-radius:10px;padding:6px 10px;font-weight:800;font-size:12px}
 .form{display:flex;flex-direction:column;gap:12px;padding:8px 20px 16px}
 .form label{font-size:12px;font-weight:700;color:var(--mut);display:flex;flex-direction:column;gap:6px}
-.spin{width:22px;height:22px;border:3px solid var(--sur4);border-top-color:var(--acc);border-radius:50%;animation:sp .8s linear infinite}
+.spin{width:22px;height:22px;border:3px solid var(--sur4);border-top-color:var(--acc);border-radius:50%;animation:sp .8s linear infinite;flex-shrink:0}
 @keyframes sp{to{transform:rotate(360deg)}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 .editor{position:fixed;inset:0;background:#000;z-index:35;display:flex;flex-direction:column}
 .editor canvas{touch-action:none;display:block}
 .editor .eh{display:flex;justify-content:space-between;align-items:center;padding:calc(var(--sat) + 10px) 14px 8px;color:var(--txt)}
-.progress{position:fixed;top:0;left:0;right:0;padding:calc(var(--sat) + 10px) 20px 10px;background:var(--bg2);z-index:50;display:flex;align-items:center;gap:12px;font-size:13px;font-weight:700}
+.progress{position:fixed;top:0;left:0;right:0;padding:calc(var(--sat) + 10px) 20px 10px;background:var(--bg2);z-index:50;display:flex;align-items:center;gap:12px;font-size:13px;font-weight:700;border-bottom:1px solid var(--line)}
+.banner{position:fixed;top:0;left:0;right:0;padding:calc(var(--sat) + 10px) 20px 10px;background:var(--acc);color:#111114;z-index:45;display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:13px;font-weight:800}
+.banner button{background:#111114;color:#fff;border-radius:10px;padding:8px 12px;font-weight:800;font-size:12px}
+.search{display:flex;align-items:center;gap:8px;padding:0 20px 12px}
+.search input{height:44px;border-radius:14px}
+.drag-li{display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--sur);border-bottom:1px solid var(--bg);touch-action:none}
+.drag-li.moving{background:var(--sur3);box-shadow:0 8px 24px rgba(0,0,0,.5);position:relative;z-index:2}
+.handle{color:var(--mut);display:flex;align-items:center;padding:6px}
+.vg{position:relative}
+.meter{height:8px;border-radius:4px;background:var(--sur3);overflow:hidden;margin:8px 0 4px}
+.meter div{height:100%;background:var(--acc)}
 </style>
 </head>
 <body>
@@ -138,7 +151,10 @@ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
 const PALETTE=['#ff7a59','#5aa9ff','#c99bff','#ffd166','#7fd18c','#ff9ec4','#6ee7d8','#f4a261'];
 const colorFor=id=>{let h=0;for(const c of id)h=(h*31+c.charCodeAt(0))>>>0;return PALETTE[h%PALETTE.length]};
-let toastT;function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('on'),1800)}
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const fmtMB=b=>b>=1073741824?(b/1073741824).toFixed(2)+' GB':(b/1048576).toFixed(b>=104857600?0:1)+' MB';
+let toastT;
+function toast(m,undoFn,ms){const t=$('#toast');t.innerHTML=`<span>${esc(m)}</span>${undoFn?'<button data-undo>Undo</button>':''}`;if(undoFn)t.querySelector('[data-undo]').onclick=()=>{t.classList.remove('on');undoFn()};t.classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('on'),ms||(undoFn?7000:1800))}
 const I={
  plus:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
  x:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>',
@@ -156,42 +172,46 @@ const I={
  trash:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>',
  edit:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4l10-10-4-4L4 16v4z"/><path d="M12 8l4 4"/></svg>',
  tagI:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12V4h8l9 9-8 8z"/><circle cx="7.5" cy="8.5" r="1.5"/></svg>',
+ share:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v13M7 8l5-5 5 5"/><path d="M5 13v7h14v-7"/></svg>',
+ search:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>',
+ grip:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M8 6h.01M8 12h.01M8 18h.01M16 6h.01M16 12h.01M16 18h.01"/></svg>',
+ prev:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>',
+ filter:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h18l-7 8v6l-4-2v-4z"/></svg>',
  img:'<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-8 8"/></svg>',
- up:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></svg>',
- down:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>',
 };
 
-/* ---------- IndexedDB ---------- */
+/* ---------- IndexedDB ----------
+   photos: metadata only · thumbs: {id,thumb} · blobs: {id,full,orig} · items · cats · meta
+   Image blobs are written once (import / edit / revert) and never re-put: Safari corrupts
+   a Blob that is read from IndexedDB and stored again. */
 const DB=(()=>{
   let db;
   const open=()=>new Promise((res,rej)=>{
-    const r=indexedDB.open('photosorter',2);
+    const r=indexedDB.open('photosorter',3);
     r.onupgradeneeded=e=>{const d=e.target.result;const has=n=>d.objectStoreNames.contains(n);
-      if(!has('photos'))d.createObjectStore('photos',{keyPath:'id'});
-      if(!has('items'))d.createObjectStore('items',{keyPath:'id'});
-      if(!has('cats'))d.createObjectStore('cats',{keyPath:'id'});
-      if(!has('meta'))d.createObjectStore('meta',{keyPath:'k'});
-      if(!has('blobs'))d.createObjectStore('blobs',{keyPath:'id'});};
-    r.onsuccess=()=>{db=r.result;res()};r.onerror=()=>rej(r.error);
+      for(const n of ['photos','items','cats','blobs','thumbs'])if(!has(n))d.createObjectStore(n,{keyPath:'id'});
+      if(!has('meta'))d.createObjectStore('meta',{keyPath:'k'});};
+    r.onsuccess=()=>{db=r.result;res()};r.onerror=()=>rej(r.error);r.onblocked=()=>rej(new Error('blocked'));
   });
-  const tx=(s,m,fn)=>new Promise((res,rej)=>{const t=db.transaction(s,m);const st=t.objectStore(s);const q=fn(st);t.oncomplete=()=>res(q&&q.result);t.onerror=()=>rej(t.error)});
-  return{open,
+  const tx=(s,m,fn)=>new Promise((res,rej)=>{const t=db.transaction(s,m);const st=t.objectStore(s);const q=fn(st);t.oncomplete=()=>res(q&&q.result);t.onerror=()=>rej(t.error);t.onabort=()=>rej(t.error||new Error('aborted'))});
+  const each=(s,fn)=>new Promise((res,rej)=>{const t=db.transaction(s,'readonly');const req=t.objectStore(s).openCursor();req.onsuccess=e=>{const c=e.target.result;if(!c){res();return}fn(c.value);c.continue()};req.onerror=()=>rej(req.error)});
+  return{open,each,
     all:s=>tx(s,'readonly',st=>st.getAll()),
+    keys:s=>tx(s,'readonly',st=>st.getAllKeys()),
     get:(s,k)=>tx(s,'readonly',st=>st.get(k)),
     put:(s,v)=>tx(s,'readwrite',st=>st.put(v)),
     putMany:(s,vs)=>tx(s,'readwrite',st=>{vs.forEach(v=>st.put(v))}),
     del:(s,k)=>tx(s,'readwrite',st=>st.delete(k)),
     clear:s=>tx(s,'readwrite',st=>st.clear())};
 })();
+const isQuota=e=>e&&(e.name==='QuotaExceededError'||/quota/i.test(String(e.message||e)));
 
 /* ---------- state ---------- */
-const S={photos:[],items:[],cats:[],view:'gallery',galFilter:'all',select:null,catSort:{},itemId:null,subId:null,
+const S={photos:[],items:[],cats:[],view:'gallery',galFilter:'all',galGroup:'month',select:null,catSort:{},itemId:null,subId:null,typeId:null,
   sortFilter:'unsorted',sortQueue:[],sortIdx:0,sortCat:null,sortItem:null,draft:[],favFilter:'all',shufFilter:'all',shufId:null,
-  catView:null,history:[]};
-const urls={};
-function thumbUrl(p){if(!p)return'';if(!urls['t'+p.id])urls['t'+p.id]=URL.createObjectURL(p.thumb);return urls['t'+p.id]}
-function fullUrl(p){if(!urls['f'+p.id])urls['f'+p.id]=URL.createObjectURL(p.full);return urls['f'+p.id]}
-const photoById=id=>S.photos.find(p=>p.id===id);
+  catView:null,history:[],recent:[],collapsed:{},q:'',counts:new Map(),subCounts:new Map(),lastBatch:null};
+const photoMap=new Map();
+const photoById=id=>photoMap.get(id);
 const itemById=id=>S.items.find(i=>i.id===id);
 const catById=id=>S.cats.find(c=>c.id===id);
 const enabledCats=()=>S.cats.filter(c=>c.enabled).sort((a,b)=>a.order-b.order);
@@ -203,7 +223,20 @@ const subOf=(item,subId)=>item&&item.subs.find(s=>s.id===subId);
 function tagLabel(t){const it=itemById(t.item);if(!it)return null;const sb=subOf(it,t.sub);return it.name+(sb?' · '+sb.name:'')}
 function photoItems(p){return [...new Set(p.tags.map(t=>t.item))].map(itemById).filter(Boolean)}
 const byNewest=(a,b)=>b.added-a.added;
+const groupCatOf=cat=>cat&&cat.groupCat?catById(cat.groupCat):null;
+const groupLabelOf=cat=>{const g=groupCatOf(cat);return g?g.name.replace(/s$/,''):(cat.groupLabel||'')};
+const groupName=it=>{const g=it.groupId&&itemById(it.groupId);return g?g.name:(it.group||'')};
+const singular=s=>s.replace(/s$/,'');
+const count=id=>S.counts.get(id)||0;
+const subCount=(id,sub)=>S.subCounts.get(id+'|'+sub)||0;
+function recount(){
+  const c=new Map(),sc=new Map();
+  for(const p of S.photos){const seen=new Set();for(const t of p.tags){if(!seen.has(t.item)){seen.add(t.item);c.set(t.item,(c.get(t.item)||0)+1)}if(t.sub){const k=t.item+'|'+t.sub;sc.set(k,(sc.get(k)||0)+1)}}}
+  S.counts=c;S.subCounts=sc;
+}
+function indexPhotos(){photoMap.clear();for(const p of S.photos)photoMap.set(p.id,p)}
 
+/* ---------- seeds & migrations ---------- */
 async function seed(){
   if(S.cats.length)return;
   const c2={id:uid(),name:'Shows',subLabel:'Seasons',groupLabel:'',enabled:true,order:1};
@@ -214,33 +247,10 @@ async function seedQuick(){
   if(S.cats.some(c=>c.quick))return;
   const c={id:uid(),name:'Type',subLabel:'Variants',groupLabel:'',enabled:true,order:S.cats.length,quick:true};
   await saveCat(c);S.cats.push(c);
-  const its=['Official art','Anime','Fanart','3D','NSFW'].map((n,i)=>({id:uid(),cat:c.id,name:n,group:'',cover:null,subs:[],order:i,added:Date.now()}));
+  const its=['Official art','Anime','Fanart','3D','NSFW'].map((n,i)=>({id:uid(),cat:c.id,name:n,cover:null,subs:[],order:i,added:Date.now()}));
   await DB.putMany('items',its);S.items.push(...its);
 }
-async function load(){
-  await DB.open();
-  S.cats=await DB.all('cats');S.items=await DB.all('items');S.photos=await DB.all('photos');
-  const blobs=new Map((await DB.all('blobs')).map(b=>[b.id,b]));
-  for(const p of S.photos){
-    let b=blobs.get(p.id);
-    if(!b&&p.full){ // legacy record with inline blobs: move them to the blobs store, rebuilt from bytes
-      let orig=null;try{orig=p.orig?{w:p.orig.w,h:p.orig.h,hash:p.orig.hash,buf:p.orig.buf||await p.orig.full.arrayBuffer()}:null}catch(e){}
-      let full=p.full,thumb=p.thumb;try{full=await fresh(p.full);thumb=await fresh(p.thumb)}catch(e){}
-      b={id:p.id,full,thumb,orig};try{await DB.put('blobs',b)}catch(e){}
-      await DB.put('photos',meta(Object.assign(p,{hasOrig:!!b.orig})));
-    }
-    if(b){p.full=b.full;p.thumb=b.thumb;p.orig=b.orig||undefined;p.hasOrig=!!b.orig}
-  }
-  S.photos=S.photos.filter(p=>p.full);
-  await seed();await seedQuick();await migrateGroups();
-  S.photos.sort(byNewest);
-}
-
-const groupCatOf=cat=>cat&&cat.groupCat?catById(cat.groupCat):null;
-const groupLabelOf=cat=>{const g=groupCatOf(cat);return g?g.name.replace(/s$/,''):(cat.groupLabel||'')};
-const groupName=it=>{const g=it.groupId&&itemById(it.groupId);return g?g.name:(it.group||'')};
 async function migrateGroups(){
-  // Link text-based groups to real items in the group category.
   for(const c of S.cats){
     if(c.groupLabel&&!c.groupCat){const g=S.cats.find(x=>x.id!==c.id&&!x.quick&&x.name.toLowerCase().startsWith(c.groupLabel.toLowerCase()));if(g){c.groupCat=g.id;await saveCat(c)}}
     const g=groupCatOf(c);if(!g)continue;
@@ -252,61 +262,169 @@ async function migrateGroups(){
     }
   }
 }
-/* ---------- image processing ---------- */
 const fresh=async blob=>new Blob([await blob.arrayBuffer()],{type:blob.type||'image/jpeg'});
+async function migrateStores(){
+  // v1: blobs inline in photo records · v2: {id,full,thumb,orig} in blobs · v3: thumbs split out
+  const m=await DB.get('meta','v3');if(m&&m.done)return;
+  showProgress(0,0,'Upgrading library');
+  const legacy=S.photos.filter(p=>p.full);
+  for(const p of legacy){
+    let orig=null;try{orig=p.orig?{w:p.orig.w,h:p.orig.h,hash:p.orig.hash,buf:p.orig.buf||await p.orig.full.arrayBuffer()}:null}catch(e){}
+    let full=p.full,thumb=p.thumb;try{full=await fresh(p.full);thumb=await fresh(p.thumb)}catch(e){}
+    try{await DB.put('blobs',{id:p.id,full,orig});await DB.put('thumbs',{id:p.id,thumb})}catch(e){}
+    await DB.put('photos',meta(Object.assign(p,{hasOrig:!!orig})));
+  }
+  const ids=await DB.keys('blobs');let n=0;
+  for(const id of ids){
+    const b=await DB.get('blobs',id);if(!b||!b.thumb)continue;
+    try{await DB.put('thumbs',{id,thumb:b.thumb});await DB.put('blobs',{id,full:b.full,orig:b.orig||null})}catch(e){}
+    if(++n%50===0){showProgress(n,ids.length,'Upgrading library');await sleep(0)}
+  }
+  const have=new Set(await DB.keys('blobs'));S.photos=S.photos.filter(p=>have.has(p.id));
+  for(const p of S.photos){if(p.hasOrig===undefined)p.hasOrig=false}
+  await DB.put('meta',{k:'v3',done:true});hideProgress();
+}
+async function load(){
+  await DB.open();
+  S.cats=await DB.all('cats');S.items=await DB.all('items');S.photos=await DB.all('photos');
+  await migrateStores();
+  for(const p of S.photos){delete p.full;delete p.thumb;delete p.orig}
+  await seed();await seedQuick();await migrateGroups();
+  S.photos.sort(byNewest);indexPhotos();recount();
+  S.recent=((await DB.get('meta','recent'))||{}).ids||[];
+  S.lastBatch=((await DB.get('meta','lastBatch'))||{}).id||null;
+}
+
+/* ---------- lazy image cache ---------- */
+const TC=new Map();const FC=new Map();const pending=new Set();
+function thumbUrl(id){const e=TC.get(id);if(e){e.t=Date.now();return e.url}requestThumb(id);return ''}
+async function requestThumb(id){
+  if(pending.has(id)||TC.has(id))return;pending.add(id);
+  try{const r=await DB.get('thumbs',id);if(!r||!r.thumb)return;const url=URL.createObjectURL(r.thumb);TC.set(id,{url,t:Date.now()});
+    document.querySelectorAll(`img[data-p="${id}"][data-k="t"]`).forEach(im=>{im.src=url});
+    if(TC.size>700)evictThumbs();
+  }catch(e){}finally{pending.delete(id)}
+}
+function evictThumbs(){const onScreen=new Set([...document.querySelectorAll('img[data-p][data-k="t"]')].map(i=>i.dataset.p));const arr=[...TC].filter(([id])=>!onScreen.has(id)).sort((a,b)=>a[1].t-b[1].t);for(const [id,e] of arr.slice(0,250)){URL.revokeObjectURL(e.url);TC.delete(id)}}
+async function getFull(id){const r=await DB.get('blobs',id);return r||null}
+async function fullUrl(id){
+  const e=FC.get(id);if(e){e.t=Date.now();return e.url}
+  const r=await getFull(id);if(!r||!r.full)return '';
+  const url=URL.createObjectURL(r.full);FC.set(id,{url,t:Date.now(),blob:r.full});
+  if(FC.size>6){const old=[...FC].filter(([k])=>k!==id).sort((a,b)=>a[1].t-b[1].t).slice(0,FC.size-6);for(const [k,v] of old){URL.revokeObjectURL(v.url);FC.delete(k)}}
+  return url;
+}
+function dropUrls(id){for(const M of [TC,FC]){const e=M.get(id);if(e){URL.revokeObjectURL(e.url);M.delete(id)}}}
+function hydrate(root){
+  (root||document).querySelectorAll('img[data-p]:not([src])').forEach(im=>{
+    const id=im.dataset.p;if(im.dataset.k==='t'){const u=thumbUrl(id);if(u)im.src=u}
+    else fullUrl(id).then(u=>{if(u&&im.isConnected)im.src=u});
+  });
+}
+document.addEventListener('error',async e=>{ // self-heal a broken blob URL once
+  const img=e.target;if(!(img instanceof HTMLImageElement)||!img.dataset.p)return;
+  const id=img.dataset.p,k=img.dataset.k;if(img.dataset.retry)return;img.dataset.retry='1';
+  try{dropUrls(id);if(k==='t'){const r=await DB.get('thumbs',id);if(!r)return;const b=await fresh(r.thumb);const url=URL.createObjectURL(b);TC.set(id,{url,t:Date.now()});img.src=url}
+    else{const r=await DB.get('blobs',id);if(!r)return;const b=await fresh(r.full);const url=URL.createObjectURL(b);FC.set(id,{url,t:Date.now(),blob:b});img.src=url}}catch(err){}
+},true);
+
+/* ---------- image processing ---------- */
 function loadImage(blob,retry=true){return new Promise((res,rej)=>{const u=URL.createObjectURL(blob);const im=new Image();im.onload=()=>{URL.revokeObjectURL(u);res(im)};im.onerror=async()=>{URL.revokeObjectURL(u);if(!retry){rej(new Error('Not an image'));return}try{res(await loadImage(await fresh(blob),false))}catch(e){rej(e)}};im.src=u})}
 function draw(im,max){const s=Math.min(1,max/Math.max(im.naturalWidth,im.naturalHeight));const c=document.createElement('canvas');c.width=Math.round(im.naturalWidth*s);c.height=Math.round(im.naturalHeight*s);c.getContext('2d').drawImage(im,0,0,c.width,c.height);return c}
 const toBlob=(c,q)=>new Promise(r=>c.toBlob(r,'image/jpeg',q));
 function dhash(im){const c=document.createElement('canvas');c.width=9;c.height=8;const x=c.getContext('2d');x.drawImage(im,0,0,9,8);const d=x.getImageData(0,0,9,8).data;let bits='';for(let y=0;y<8;y++){for(let i=0;i<8;i++){const a=(y*9+i)*4,b=a+4;const la=d[a]*.299+d[a+1]*.587+d[a+2]*.114,lb=d[b]*.299+d[b+1]*.587+d[b+2]*.114;bits+=la>lb?'1':'0'}}return bits}
 function hamming(a,b){let n=0;for(let i=0;i<64;i++)if(a[i]!==b[i])n++;return n}
-async function importFiles(files){
-  const list=[...files].filter(f=>f.type.startsWith('image/')||/\.(jpe?g|png|webp|gif|heic)$/i.test(f.name));
-  if(!list.length){toast('No images selected');return}
-  showProgress(0,list.length);
-  let n=0,fail=0;const added=[];
-  for(const f of list){
-    try{
-      const im=await loadImage(f);
-      const full=await toBlob(draw(im,2000),.86);
-      const thumb=await toBlob(draw(im,320),.8);
-      const p={id:uid(),name:f.name,added:f.lastModified||Date.now(),imported:Date.now(),w:im.naturalWidth,h:im.naturalHeight,full,thumb,hash:dhash(im),fav:false,tags:[]};
-      await saveBlobs(p);await savePhoto(p);S.photos.push(p);added.push(p);
-    }catch(e){fail++}
-    showProgress(++n,list.length);
-  }
-  S.photos.sort(byNewest);hideProgress();
-  toast(`Added ${added.length} photo${added.length===1?'':'s'}`+(fail?`, ${fail} skipped`:''));
-  render();
+async function exifDate(file){ // DateTimeOriginal from a JPEG's EXIF, or null
+  try{
+    const buf=await file.slice(0,256*1024).arrayBuffer();const v=new DataView(buf);if(v.getUint16(0)!==0xFFD8)return null;
+    let o=2;while(o<v.byteLength-4){const m=v.getUint16(o);const len=v.getUint16(o+2);if(m===0xFFE1&&v.getUint32(o+4)===0x45786966){
+      const t=o+10;const le=v.getUint16(t)===0x4949;const g=(p,n)=>n===2?v.getUint16(p,le):v.getUint32(p,le);
+      const ifd0=t+g(t+4,4);const n0=g(ifd0,2);let exif=0;for(let i=0;i<n0;i++){const e=ifd0+2+i*12;if(g(e,2)===0x8769){exif=t+g(e+8,4)}}
+      const scan=(ifd)=>{const n=g(ifd,2);for(let i=0;i<n;i++){const e=ifd+2+i*12;const tag=g(e,2);if(tag===0x9003||tag===0x0132){const cnt=g(e+4,4);const p=t+g(e+8,4);let s='';for(let k=0;k<Math.min(cnt,19);k++)s+=String.fromCharCode(v.getUint8(p+k));const mm=s.match(/(\d{4}):(\d{2}):(\d{2}) (\d{2}):(\d{2}):(\d{2})/);if(mm){const d=new Date(+mm[1],+mm[2]-1,+mm[3],+mm[4],+mm[5],+mm[6]);if(!isNaN(d))return d.getTime()}}}return null};
+      return (exif&&scan(exif))||scan(ifd0);
+    }if((m&0xFF00)!==0xFF00)break;o+=2+len}
+  }catch(e){}return null;
 }
-function showProgress(n,t){let e=$('#prog');if(!e){e=document.createElement('div');e.id='prog';e.className='progress';document.body.appendChild(e)}e.innerHTML=`<div class="spin"></div><div>Importing ${n} of ${t}</div>`}
-function hideProgress(){const e=$('#prog');if(e)e.remove()}
-
+</script>
+<script>
 /* ---------- persistence ---------- */
 function applyImplied(tags){
-  // A character tagged with a show (its group) also gets that show's tag.
   for(const t of tags.slice()){const it=itemById(t.item);if(!it||!it.groupId)continue;
     if(itemById(it.groupId)&&!tags.some(k=>k.item===it.groupId))tags.push({item:it.groupId,sub:null})}
   return tags;
 }
-function meta(p){const {full,thumb,orig,...m}=p;m.hasOrig=!!orig;return m}
+function meta(p){const {full,thumb,orig,...m}=p;return m}
 const savePhoto=p=>{applyImplied(p.tags);return DB.put('photos',meta(p))};
-const saveBlobs=p=>DB.put('blobs',{id:p.id,full:p.full,thumb:p.thumb,orig:p.orig||null});
 const saveItem=i=>DB.put('items',i);
 const saveCat=c=>DB.put('cats',c);
-async function deletePhotos(ids){
-  for(const id of ids){await DB.del('photos',id);await DB.del('blobs',id);['t','f'].forEach(k=>{if(urls[k+id]){URL.revokeObjectURL(urls[k+id]);delete urls[k+id]}})}
-  S.photos=S.photos.filter(p=>!ids.includes(p.id));
-  for(const it of S.items){let ch=false;if(ids.includes(it.cover)){it.cover=null;ch=true}for(const s of it.subs)if(ids.includes(s.cover)){s.cover=null;ch=true}if(ch)await saveItem(it)}
+async function saveImages(p,full,thumb,orig){await DB.put('blobs',{id:p.id,full,orig:orig||null});await DB.put('thumbs',{id:p.id,thumb});p.hasOrig=!!orig;dropUrls(p.id)}
+async function saveRecent(){await DB.put('meta',{k:'recent',ids:S.recent.slice(0,40)})}
+function touchRecent(id){S.recent=[id,...S.recent.filter(x=>x!==id)].slice(0,40);saveRecent()}
+async function deletePhotos(ids,keepForUndo){
+  const kept=[];
+  for(const id of ids){
+    const p=photoById(id);if(!p)continue;
+    if(keepForUndo){try{kept.push({p:{...p},b:await DB.get('blobs',id),t:await DB.get('thumbs',id)})}catch(e){}}
+    await DB.del('photos',id);await DB.del('blobs',id);await DB.del('thumbs',id);dropUrls(id);
+  }
+  const set=new Set(ids);S.photos=S.photos.filter(p=>!set.has(p.id));indexPhotos();recount();
+  for(const it of S.items){let ch=false;if(set.has(it.cover)){it.cover=null;ch=true}for(const s of it.subs)if(set.has(s.cover)){s.cover=null;ch=true}if(it.typeCovers)for(const k in it.typeCovers)if(set.has(it.typeCovers[k].id)){delete it.typeCovers[k];ch=true}if(ch)await saveItem(it)}
+  return kept;
 }
-</script>
-<script>
+async function restorePhotos(kept){
+  for(const {p,b,t} of kept){if(!b||!t)continue;await DB.put('blobs',b);await DB.put('thumbs',t);await DB.put('photos',meta(p));S.photos.push(p)}
+  S.photos.sort(byNewest);indexPhotos();recount();
+}
+
+/* ---------- import ---------- */
+function showProgress(n,t,label){let e=$('#prog');if(!e){e=document.createElement('div');e.id='prog';e.className='progress';document.body.appendChild(e)}e.innerHTML=`<div class="spin"></div><div style="flex:1">${esc(label||'Importing')}${t?` ${n} of ${t}`:''}</div>${label==='Importing'||!label?'<button class="pill" data-stop style="height:30px">Stop</button>':''}`;const st=e.querySelector('[data-stop]');if(st)st.onclick=()=>{S.stopImport=true;st.textContent='Stopping…'}}
+function hideProgress(){const e=$('#prog');if(e)e.remove()}
+const srcKey=f=>`${f.name}|${f.size}`;
+async function importFiles(files){
+  const list=[...files].filter(f=>f.type.startsWith('image/')||/\.(jpe?g|png|webp|gif|heic|heif|avif)$/i.test(f.name));
+  if(!list.length){toast('No images selected');return}
+  const have=new Set(S.photos.map(p=>p.src).filter(Boolean));
+  const batch=uid();S.stopImport=false;
+  let n=0,fail=0,skip=0;const added=[];let quota=false;
+  showProgress(0,list.length,'Importing');
+  for(const f of list){
+    if(S.stopImport)break;
+    n++;
+    if(have.has(srcKey(f))){skip++;if(n%20===0)showProgress(n,list.length,'Importing');continue}
+    try{
+      const im=await loadImage(f);
+      const full=await toBlob(draw(im,2000),.86);
+      const thumb=await toBlob(draw(im,320),.8);
+      const shot=/jpe?g$/i.test(f.name)||f.type==='image/jpeg'?await exifDate(f):null;
+      const p={id:uid(),name:f.name,added:shot||f.lastModified||Date.now(),imported:Date.now(),batch,src:srcKey(f),w:im.naturalWidth,h:im.naturalHeight,hash:dhash(im),fav:false,tags:[],hasOrig:false};
+      try{await saveImages(p,full,thumb,null);await savePhoto(p)}catch(e){if(isQuota(e)){quota=true;try{await DB.del('blobs',p.id);await DB.del('thumbs',p.id);await DB.del('photos',p.id)}catch(_){}break}throw e}
+      S.photos.push(p);photoMap.set(p.id,p);added.push(p);have.add(p.src);
+    }catch(e){fail++}
+    showProgress(n,list.length,'Importing');
+    if(n%3===0)await sleep(0);
+  }
+  S.photos.sort(byNewest);recount();hideProgress();
+  if(added.length){S.lastBatch=batch;await DB.put('meta',{k:'lastBatch',id:batch})}
+  const parts=[`Added ${added.length}`];if(skip)parts.push(`${skip} already in library`);if(fail)parts.push(`${fail} unreadable`);if(S.stopImport)parts.push('stopped');
+  if(quota)await ask(`Storage is full. ${added.length} photos were added before iOS ran out of space. Free space on the phone, or delete photos here, then import the rest again — already-imported files are skipped automatically.`,{ok:'OK',single:true});
+  else toast(parts.join(' · '),null,3500);
+  render();
+}
+async function importImageZip(z){
+  const entries=Object.values(z.files).filter(f=>!f.dir&&/\.(jpe?g|png|webp|gif|heic|heif|avif)$/i.test(f.name)&&!/__MACOSX|\/\./.test(f.name));
+  if(!entries.length){toast('No images in that zip');return}
+  const files=[];showProgress(0,entries.length,'Reading zip');let n=0;
+  for(const e of entries){const b=await e.async('blob');const nm=e.name.split('/').pop();files.push(new File([b],nm,{type:'image/jpeg',lastModified:e.date?e.date.getTime():Date.now()}));if(++n%20===0){showProgress(n,entries.length,'Reading zip');await sleep(0)}}
+  hideProgress();await importFiles(files);
+}
+
 /* ---------- navigation ---------- */
 function go(view,extra={}){Object.assign(S,extra);S.view=view;S.select=null;render(true);const sc=$('#app .scroll');if(sc)sc.scrollTop=0}
 function nav(){
   const p=primaryCat();const cur=S.view;
   const tab=(id,ic,label,on)=>`<button class="tab ${on?'on':''}" data-nav="${id}">${ic}${label}</button>`;
   return `<nav class="tabbar">
-    ${tab('gallery',I.gal,'Gallery',cur==='gallery')}
+    ${tab('gallery',I.gal,'Gallery',cur==='gallery'||cur==='search')}
     ${p?tab('cat:'+p.id,I.person,'Library',cur==='cat'||cur==='item'):''}
     <button class="tab" data-nav="sort"><span class="fab">${I.sort}</span>Sort</button>
     ${tab('favorites',I.star,'Favorites',cur==='favorites')}
@@ -314,59 +432,118 @@ function nav(){
   </nav>`;
 }
 function render(reset){
-  const V={gallery,cat:catView,item:itemView,sort:sortView,favorites:favView,shuffle:shuffleView,more:moreView,dupes:dupesView,manage:manageView};
+  const V={gallery,cat:catView,item:itemView,sort:sortView,favorites:favView,shuffle:shuffleView,more:moreView,dupes:dupesView,manage:manageView,search:searchView};
   const prev=$('#app .scroll');const keep=!reset&&prev?prev.scrollTop:0;
   $('#app').innerHTML=(V[S.view]||gallery)();
   bind();
   const sc=$('#app .scroll');if(sc&&keep)sc.scrollTop=keep;
+  mountGrids();hydrate($('#app'));
+  const q=$('#q');if(q)q.oninput=()=>{S.q=q.value;const r=$('#sres');r.innerHTML=searchResults();r.scrollTop=0;bind();mountGrids();hydrate(r)};
+  const st=$('#sortStage');if(st)attachSwipe(st,d=>{if(d>0)actions.skip();else actions.prev()});
 }
 function bind(){
   const app=$('#app');
-  app.querySelectorAll('[data-nav]').forEach(b=>b.onclick=()=>{const v=b.dataset.nav;if(v.startsWith('cat:')){const id=v.slice(4);go('cat',{catView:(b.classList.contains('tab')&&S.catView&&catById(S.catView))?S.catView:id})}else if(v==='sort')startSort();else go(v)});
+  app.querySelectorAll('[data-nav]').forEach(b=>b.onclick=()=>{const v=b.dataset.nav;if(v.startsWith('cat:')){const id=v.slice(4);go('cat',{catView:(b.classList.contains('tab')&&S.catView&&catById(S.catView)&&!catById(S.catView).quick)?S.catView:id})}else if(v==='sort')startSort();else go(v)});
   app.querySelectorAll('[data-act]').forEach(b=>b.onclick=e=>actions[b.dataset.act]&&actions[b.dataset.act](b,e));
 }
 
+/* ---------- virtual grid ----------
+   A grid is described as rows (header rows + tile rows). Only rows near the viewport exist in
+   the DOM, so 20k photos cost nothing until scrolled to. */
+const grids={};
+function vgrid(key,photos,{cols=3,gap=3,group=null,selSet=null,indH=15}={}){
+  const rows=[];
+  const push=(ps)=>{for(let i=0;i<ps.length;i+=cols)rows.push({t:'tiles',ids:ps.slice(i,i+cols).map(p=>p.id)})};
+  if(group){const g=new Map();for(const p of photos){const k=group(p);if(!g.has(k))g.set(k,[]);g.get(k).push(p)}
+    for(const [k,ps] of g){rows.push({t:'head',k,ids:ps.map(p=>p.id)});push(ps)}}
+  else push(photos);
+  grids[key]={rows,cols,gap,selSet,indH,first:-1,last:-1};
+  return `<div class="vg" data-vg="${key}"></div>`;
+}
+function mountGrids(){
+  const sc=$('#app .scroll');if(!sc)return;
+  const els=[...sc.querySelectorAll('[data-vg]')];if(!els.length)return;
+  const W=sc.clientWidth||390;
+  for(const el of els){const g=grids[el.dataset.vg];if(!g)continue;g.el=el;g.tileH=Math.floor((W-40-g.gap*(g.cols-1))/g.cols)+g.gap+g.indH;g.headH=36;
+    let y=0;g.offs=g.rows.map(r=>{const o=y;y+=r.t==='head'?g.headH:g.tileH;return o});g.total=y;el.style.height=g.total+'px';g.first=-1;g.last=-1}
+  const upd=()=>{for(const el of els){const g=grids[el.dataset.vg];if(!g||!el.isConnected)continue;paintGrid(g,sc)}};
+  sc.onscroll=()=>{if(sc._raf)return;sc._raf=requestAnimationFrame(()=>{sc._raf=null;upd()})};
+  upd();
+}
+function paintGrid(g,sc){
+  const vh=Math.max(sc.clientHeight||0,600);const top=g.el.offsetTop;const vt=sc.scrollTop-top,vb=vt+vh;const buf=vh;
+  let first=0;while(first<g.rows.length-1&&g.offs[first+1]<vt-buf)first++;
+  let last=first;while(last<g.rows.length-1&&g.offs[last]<vb+buf)last++;
+  if(first===g.first&&last===g.last)return;g.first=first;g.last=last;
+  let h='';const sel=S.select;
+  for(let i=first;i<=last;i++){const r=g.rows[i];const y=g.offs[i];
+    if(r.t==='head'){const allIn=sel&&r.ids.every(id=>sel.has(id));h+=`<div class="month" style="position:absolute;left:0;right:0;top:${y}px"><span>${esc(r.k)}</span>${sel?`<button class="link" data-act="selGroup" data-ids="${r.ids.join(',')}">${allIn?'Deselect':'Select'} ${r.ids.length}</button>`:`<span style="font-weight:600">${r.ids.length}</span>`}</div>`}
+    else{h+=`<div style="position:absolute;left:20px;right:20px;top:${y}px;display:grid;grid-template-columns:repeat(${g.cols},minmax(0,1fr));gap:${g.gap}px">${r.ids.map(id=>{const p=photoById(id);return p?tileHTML(p,sel&&sel.has(id)):''}).join('')}</div>`}
+  }
+  g.el.innerHTML=h;
+  g.el.querySelectorAll('[data-act]').forEach(b=>b.onclick=e=>actions[b.dataset.act]&&actions[b.dataset.act](b,e));
+  hydrate(g.el);
+}
+function repaintGrids(){for(const k in grids){const g=grids[k];if(g.el&&g.el.isConnected){g.first=-1;paintGrid(g,$('#app .scroll'))}}}
+
 /* ---------- shared bits ---------- */
 function dotsFor(p){return photoItems(p).map(i=>`<span class="dot" style="background:${colorFor(i.id)}"></span>`).join('')+(p.fav?I.starS:'')}
-function tileHTML(p,sel){return `<button class="tile ${sel?'sel':''}" data-act="tile" data-id="${p.id}"><div class="img"><img src="${thumbUrl(p)}" alt="" loading="lazy" data-p="${p.id}" data-k="t">${S.select?`<div class="chk">${sel?I.check:''}</div>`:''}</div><div class="ind">${dotsFor(p)}</div></button>`}
-function monthGrid(photos,selSet){
-  if(!photos.length)return '';
-  const groups=new Map();const day=S.galGroup==='day';
-  for(const p of photos){const d=new Date(p.added);const k=day?d.toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric',year:'numeric'}):d.toLocaleString(undefined,{month:'long',year:'numeric'});if(!groups.has(k))groups.set(k,[]);groups.get(k).push(p)}
-  return [...groups].map(([k,ps])=>{const allIn=selSet&&ps.every(p=>selSet.has(p.id));return `<div class="month" style="display:flex;justify-content:space-between;align-items:baseline"><span>${esc(k)}</span>${selSet?`<button class="link" data-act="selGroup" data-ids="${ps.map(p=>p.id).join(',')}">${allIn?'Deselect':'Select'} ${ps.length}</button>`:`<span style="font-weight:600">${ps.length}</span>`}</div><div class="grid3">${ps.map(p=>tileHTML(p,selSet&&selSet.has(p.id))).join('')}</div>`}).join('');
+function tileHTML(p,sel){return `<button class="tile ${sel?'sel':''}" data-act="tile" data-id="${p.id}"><div class="img"><img alt="" data-p="${p.id}" data-k="t">${S.select?`<div class="chk">${sel?I.check:''}</div>`:''}</div><div class="ind">${dotsFor(p)}</div></button>`}
+function coverImg(id,crop){
+  if(crop&&crop.w>0&&crop.h>0)return `<span style="position:absolute;inset:0;overflow:hidden"><img alt="" data-p="${id}" data-k="t" style="position:absolute;left:${(-crop.x/crop.w*100).toFixed(3)}%;top:${(-crop.y/crop.h*100).toFixed(3)}%;width:${(100/crop.w).toFixed(3)}%;height:${(100/crop.h).toFixed(3)}%;object-fit:fill"></span>`;
+  return `<img alt="" data-p="${id}" data-k="t">`;
 }
+function coverHTML(id,fallbackText,crop){const p=photoById(id);return p?coverImg(id,crop):`<span style="color:#111114">${esc(fallbackText)}</span>`}
 function selHead(title,rightHTML){
   const sel=S.select;
   if(sel)return `<div class="head"><button class="pill" data-act="selCancel">Cancel</button><div id="selCount" style="font-size:16px;font-weight:800">${sel.size} selected</div><button class="pill" data-act="selAll">Select all</button></div>`;
   return `<div class="head">${title}<div style="display:flex;gap:8px">${rightHTML}</div></div>`;
 }
 function selBar(){
-  const sel=S.select;const n=sel.size;const dis=n?'':'disabled';const it=S.view==='item'&&itemById(S.itemId);
+  const n=S.select.size;const dis=n?'':'disabled';const it=S.view==='item'&&itemById(S.itemId);
   return `<div class="bar" style="flex-direction:column;gap:8px;background:var(--bg2);border-top:1px solid var(--line)"><div id="selApply" style="font-size:12px;font-weight:700;color:var(--mut)">Apply to ${n} photo${n===1?'':'s'}</div><div style="display:flex;gap:8px"><button class="btn pri" style="height:48px;flex:1" data-act="selTag" ${dis}>Tag…</button>${it?`<button class="btn" style="height:48px" data-act="selUntag" ${dis}>Untag</button>`:''}<button class="btn" style="height:48px" data-act="selFav" ${dis}>${I.star.replace('22','16').replace('22','16')}Favorite</button><button class="btn" style="height:48px" data-act="selExport" ${dis}>Export</button><button class="btn danger" style="height:48px;flex:0 0 48px;padding:0" data-act="selDelete" aria-label="Delete selected" ${dis}>${I.trash}</button></div></div>`;
 }
-function coverHTML(id,fallbackText,crop){const p=photoById(id);if(p&&crop&&crop.w>0&&crop.h>0)return `<span style="position:relative;display:block;width:100%;height:100%;overflow:hidden"><img src="${thumbUrl(p)}" alt="" data-p="${p.id}" data-k="t" style="position:absolute;left:${(-crop.x/crop.w*100).toFixed(3)}%;top:${(-crop.y/crop.h*100).toFixed(3)}%;width:${(100/crop.w).toFixed(3)}%;height:${(100/crop.h).toFixed(3)}%;object-fit:fill"></span>`;return p?`<img src="${thumbUrl(p)}" alt="" data-p="${p.id}" data-k="t">`:`<span style="color:#111114">${esc(fallbackText)}</span>`}
-
 function updateSelBar(){
   const n=S.select?S.select.size:0;const c=$('#selCount');if(c)c.textContent=n+' selected';
   const a=$('#selApply');if(a)a.textContent=`Apply to ${n} photo${n===1?'':'s'}`;
   document.querySelectorAll('[data-act="selTag"],[data-act="selUntag"],[data-act="selFav"],[data-act="selExport"],[data-act="selDelete"]').forEach(x=>x.disabled=!n);
-  const all=$('[data-act="selAll"]');if(all){const list=$('#app').querySelectorAll('.tile').length;all.textContent=n===list?'Select none':'Select all'}
-  document.querySelectorAll('[data-act="selGroup"]').forEach(g=>{const ids=g.dataset.ids.split(',');g.textContent=(ids.every(i=>S.select.has(i))?'Deselect ':'Select ')+ids.length})
+  document.querySelectorAll('[data-act="selGroup"]').forEach(g=>{const ids=g.dataset.ids.split(',');g.textContent=(ids.every(i=>S.select.has(i))?'Deselect ':'Select ')+ids.length});
 }
+function visibleIds(){const k=Object.keys(grids).find(k=>grids[k].el&&grids[k].el.isConnected);if(k)return grids[k].rows.flatMap(r=>r.t==='tiles'?r.ids:[]);return [...$('#app').querySelectorAll('.tile')].map(t=>t.dataset.id)}
+const groupKey=p=>{const d=new Date(p.added);return S.galGroup==='day'?d.toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric',year:'numeric'}):d.toLocaleString(undefined,{month:'long',year:'numeric'})};
+
 /* ---------- Gallery ---------- */
-function gallery(){
-  const untagged=S.photos.filter(p=>!p.tags.length);
-  let list=S.galFilter==='unsorted'?untagged:S.galFilter==='tagged'?S.photos.filter(p=>p.tags.length):S.photos;
+function galleryList(){
+  let list=S.galFilter==='unsorted'?S.photos.filter(p=>!p.tags.length):S.galFilter==='tagged'?S.photos.filter(p=>p.tags.length):S.galFilter==='last'?S.photos.filter(p=>p.batch===S.lastBatch):S.photos;
   if(S.galType)list=list.filter(p=>p.tags.some(t=>t.item===S.galType));
-  const sel=S.select;
-  const head=selHead('<h1 class="title">Gallery</h1>',`<button class="pill" data-act="selStart" ${S.photos.length?'':'disabled'}>Select</button><button class="pill on" data-act="add">${I.plus.replace('20','16').replace('20','16')}Add photos</button>`);
-  const chip=(k,l,n)=>`<button class="pill ${S.galFilter===k?'on':''}" data-act="galFilter" data-k="${k}">${l} · ${n}</button>`;
-  const body=S.photos.length?monthGrid(list,sel):`<div class="empty">No photos yet.<br>Tap Add photos to pick from your library, or share photos to this app.</div>`;
-  const bar=sel?selBar():nav();
-  return `<div class="screen">${head}<div class="chips">${chip('all','All',S.photos.length)}${chip('unsorted','Unsorted',untagged.length)}${chip('tagged','Tagged',S.photos.length-untagged.length)}${quickCats().flatMap(c=>sortedItems(c)).map(i=>`<button class="pill ${S.galType===i.id?'acc':''}" data-act="galType" data-k="${i.id}">${esc(i.name)}</button>`).join('')}<button class="pill" data-act="galGroup" style="margin-left:auto">${S.galGroup==='day'?'By day':'By month'}</button></div><div class="scroll">${body}${S.photos.length?'<div class="note">Dots under a photo show its tagged items. Tap a photo to open it, or hold to select.</div>':''}</div>${bar}</div>`;
+  return list;
+}
+function gallery(){
+  const untagged=S.photos.reduce((n,p)=>n+(p.tags.length?0:1),0);
+  const list=galleryList();const sel=S.select;
+  const head=selHead('<h1 class="title">Gallery</h1>',`<button class="icon-btn" data-act="search" aria-label="Search">${I.search}</button><button class="pill" data-act="selStart" ${S.photos.length?'':'disabled'}>Select</button><button class="pill on" data-act="add">${I.plus.replace('20','16').replace('20','16')}Add</button>`);
+  const chip=(k,l,n)=>`<button class="pill ${S.galFilter===k?'on':''}" data-act="galFilter" data-k="${k}">${l}${n!==undefined?' · '+n:''}</button>`;
+  const lastN=S.lastBatch?S.photos.reduce((n,p)=>n+(p.batch===S.lastBatch?1:0),0):0;
+  const body=S.photos.length?(list.length?vgrid('gal',list,{group:groupKey,selSet:sel}):'<div class="empty">Nothing matches this filter.</div>'):`<div class="empty">No photos yet.<br>Tap Add to pick from your library, choose Browse in the picker to import a whole folder from Files, or import a zip of images from More.</div>`;
+  return `<div class="screen">${head}<div class="chips">${chip('all','All',S.photos.length)}${chip('unsorted','Unsorted',untagged)}${chip('tagged','Tagged',S.photos.length-untagged)}${lastN?chip('last','Last import',lastN):''}${quickCats().flatMap(c=>sortedItems(c)).map(i=>`<button class="pill ${S.galType===i.id?'acc':''}" data-act="galType" data-k="${i.id}">${esc(i.name)}</button>`).join('')}<button class="pill" data-act="galGroup" style="margin-left:auto">${S.galGroup==='day'?'By day':'By month'}</button></div><div class="scroll">${body}</div>${sel?selBar():nav()}</div>`;
 }
 
-/* ---------- Category view (Characters / Shows / …) ---------- */
+/* ---------- Search ---------- */
+function searchResults(){
+  const q=S.q.trim().toLowerCase();
+  if(!q)return '<div class="empty">Type to search characters, shows, outfits, types and filenames.</div>';
+  const items=S.items.filter(i=>i.name.toLowerCase().includes(q)||i.subs.some(s=>s.name.toLowerCase().includes(q)));
+  const itemIds=new Set(items.filter(i=>i.name.toLowerCase().includes(q)).map(i=>i.id));
+  const subHits=new Set();items.forEach(i=>i.subs.forEach(s=>{if(s.name.toLowerCase().includes(q))subHits.add(i.id+'|'+s.id)}));
+  const photos=S.photos.filter(p=>(p.name||'').toLowerCase().includes(q)||p.tags.some(t=>itemIds.has(t.item)||(t.sub&&subHits.has(t.item+'|'+t.sub))));
+  return `${items.length?`<div class="label">Tags · ${items.length}</div><div class="grid2" style="margin-bottom:18px">${items.slice(0,20).map(i=>itemCard(i,catById(i.cat))).join('')}</div>`:''}
+   <div class="label">Photos · ${photos.length}</div>${photos.length?vgrid('search',photos,{selSet:S.select}):'<div class="empty">No photos match.</div>'}`;
+}
+function searchView(){
+  return `<div class="screen"><div class="head" style="gap:12px"><button class="icon-btn" data-act="back" aria-label="Back">${I.back}</button><div style="flex:1"><input id="q" placeholder="Character, show, outfit, type, filename" value="${esc(S.q)}" autocomplete="off" style="height:44px;border-radius:14px"></div></div>
+  <div class="scroll" id="sres">${searchResults()}</div>${S.select?selBar():nav()}</div>`;
+}
+/* ---------- Library (category view) ---------- */
 function sortedItems(cat){
   const mode=S.catSort[cat.id]||'custom';const its=itemsOf(cat.id).slice();
   if(mode==='recent')return its.sort(byNewest);
@@ -378,20 +555,34 @@ function catView(){
   const mode=S.catSort[cat.id]||'custom';const its=sortedItems(cat);
   const seg=`<div class="seg">${[['custom','Custom'],['group',groupLabelOf(cat)?'By '+esc(groupLabelOf(cat).toLowerCase()):'A–Z'],['recent','Recent']].map(([k,l])=>`<button class="${mode===k?'on':''}" data-act="catSort" data-k="${k}">${l}</button>`).join('')}</div>`;
   let body='';
-  if(!its.length)body=`<div class="empty">No ${esc(cat.name.toLowerCase())} yet.<br>Tap + to create one.</div>`;
+  const g=groupCatOf(cat);
+  if(!its.length)body=`<div class="empty">No ${esc(cat.name.toLowerCase())} yet.<br>${g?`Tap + to add one and pick its ${esc(g.name.toLowerCase().replace(/s$/,''))}, or add a ${esc(g.name.toLowerCase().replace(/s$/,''))} first from the ${esc(g.name)} chip.`:'Tap + to create one.'}</div>`;
   else if(mode==='group'){
-    const g=new Map();its.forEach(i=>{const k=groupName(i)||'No '+(groupLabelOf(cat)||'group').toLowerCase();if(!g.has(k))g.set(k,[]);g.get(k).push(i)});
-    body=[...g].map(([k,l])=>`<div class="month" style="padding-top:4px">${esc(k)}</div><div class="grid2" style="margin-bottom:16px">${l.map(i=>itemCard(i,cat)).join('')}</div>`).join('');
-  } else body=`<div class="grid2">${its.map(i=>itemCard(i,cat,mode==='custom')).join('')}</div>`;
-  const catChips=`<div class="chips">${enabledCats().map(c=>`<button class="pill ${c.id===cat.id?'on':''}" data-nav="cat:${c.id}">${esc(c.name)}</button>`).join('')}</div>`;
+    const gm=new Map();its.forEach(i=>{const k=groupName(i)||'No '+(groupLabelOf(cat)||'group').toLowerCase();if(!gm.has(k))gm.set(k,[]);gm.get(k).push(i)});
+    body=[...gm].map(([k,l])=>{const col=S.collapsed[cat.id+'|'+k];return `<button class="month" style="width:100%;text-align:left;padding-top:4px" data-act="collapse" data-k="${esc(k)}"><span>${esc(k)}</span><span style="font-weight:600">${l.length} ${col?'▸':'▾'}</span></button>${col?'':`<div class="grid2" style="margin-bottom:16px">${l.map(i=>itemCard(i,cat)).join('')}</div>`}`}).join('');
+  } else body=`<div class="grid2">${its.map(i=>itemCard(i,cat)).join('')}</div>`;
+  const catChips=`<div class="chips">${mainCats().map(c=>`<button class="pill ${c.id===cat.id?'on':''}" data-nav="cat:${c.id}">${esc(c.name)}</button>`).join('')}${mode==='custom'&&its.length>1?`<button class="pill" data-act="reorder" style="margin-left:auto">Reorder</button>`:''}</div>`;
   return `<div class="screen"><div class="head"><h1 class="title">${esc(cat.name)}</h1><button class="icon-btn acc" data-act="newItem" aria-label="New">${I.plus}</button></div>${catChips}${seg}<div class="scroll">${body}</div>${nav()}</div>`;
 }
-function itemCard(i,cat,reorder){
-  const n=S.photos.filter(p=>p.tags.some(t=>t.item===i.id)).length;
-  return `<div style="display:flex;flex-direction:column;gap:6px;min-width:0"><button class="card" data-act="openItem" data-id="${i.id}"><div class="cov" style="background:${colorFor(i.id)}">${coverHTML(i.cover,i.name[0]||'?',i.coverCrop)}</div><div class="nm">${esc(i.name)}</div><div class="mt">${groupName(i)?esc(groupName(i))+' · ':''}${n} photo${n===1?'':'s'}${i.subs.length?' · '+i.subs.length+' '+esc(cat.subLabel.toLowerCase()):''}</div></button>${reorder?`<div style="display:flex;gap:6px"><button class="pill" style="height:30px;padding:0 10px" data-act="itemUp" data-id="${i.id}" aria-label="Move up">${I.up}</button><button class="pill" style="height:30px;padding:0 10px" data-act="itemDown" data-id="${i.id}" aria-label="Move down">${I.down}</button></div>`:''}</div>`;
+function itemCard(i,cat){
+  const n=count(i.id);
+  return `<button class="card ${n?'':'dim'}" data-act="openItem" data-id="${i.id}"><div class="cov" style="background:${colorFor(i.id)}">${coverHTML(i.cover,i.name[0]||'?',i.coverCrop)}</div><div class="nm">${esc(i.name)}</div><div class="mt">${groupName(i)?esc(groupName(i))+' · ':''}${n} photo${n===1?'':'s'}${i.subs.length?' · '+i.subs.length+' '+esc(cat.subLabel.toLowerCase()):''}</div></button>`;
+}
+function reorderSheet(cat){
+  const its=sortedItems(cat);
+  sheet('Reorder '+esc(cat.name.toLowerCase()),`<div class="note" style="padding-top:0;padding-bottom:10px">Drag the handle to move an item.</div><div id="dl" style="margin:0 20px;border-radius:16px;overflow:hidden">${its.map(i=>`<div class="drag-li" data-id="${i.id}"><span class="handle">${I.grip}</span><div style="width:32px;height:32px;border-radius:16px;background:${colorFor(i.id)};overflow:hidden;position:relative;flex-shrink:0">${coverHTML(i.cover,'',i.coverCrop)}</div><div style="flex:1;font-weight:700">${esc(i.name)}</div></div>`).join('')}</div><div style="padding:16px 20px 0"><button class="btn pri" style="width:100%" data-done>Done</button></div>`,el=>{
+    const L=el.querySelector('#dl');let drag=null;
+    L.addEventListener('pointerdown',e=>{const h=e.target.closest('.handle');if(!h)return;const li=h.closest('.drag-li');li.setPointerCapture(e.pointerId);li.classList.add('moving');drag={li,y:e.clientY,h:li.offsetHeight};e.preventDefault()});
+    L.addEventListener('pointermove',e=>{if(!drag)return;const dy=e.clientY-drag.y;drag.li.style.transform=`translateY(${dy}px)`;
+      const sib=dy>0?drag.li.nextElementSibling:drag.li.previousElementSibling;if(sib&&Math.abs(dy)>drag.h*0.6){drag.li.style.transform='';drag.y=e.clientY;if(dy>0)sib.after(drag.li);else sib.before(drag.li)}});
+    const end=async()=>{if(!drag)return;drag.li.classList.remove('moving');drag.li.style.transform='';drag=null;const ids=[...L.querySelectorAll('.drag-li')].map(x=>x.dataset.id);ids.forEach((id,k)=>{itemById(id).order=k});await DB.putMany('items',ids.map(itemById))};
+    L.addEventListener('pointerup',end);L.addEventListener('pointercancel',end);
+    el.querySelector('[data-done]').onclick=()=>{closeSheet();render()};
+    hydrate(el);
+  });
 }
 
-/* ---------- Item detail ---------- */
+/* ---------- Item page (character / show / outfit) ---------- */
 function itemView(){
   const it=itemById(S.itemId);if(!it)return gallery();const cat=catById(it.cat);
   const all=S.photos.filter(p=>p.tags.some(t=>t.item===it.id));
@@ -399,60 +590,71 @@ function itemView(){
   const typeIt=S.typeId&&itemById(S.typeId);
   const shown=typeIt?bySub.filter(p=>p.tags.some(t=>t.item===typeIt.id)):bySub;
   const sub=subOf(it,S.subId);
-  const folders=quickCats().map(c=>{const fs=sortedItems(c).map(q=>{const ps=bySub.filter(p=>p.tags.some(t=>t.item===q.id));return {q,ps}}).filter(x=>x.ps.length);return fs.length?`<div class="row-head" style="padding-top:4px"><div class="label" style="padding:0">${esc(c.name)}${sub?' · '+esc(sub.name):''}</div>${typeIt?`<button class="link" data-act="pickType" data-id="">Show all</button>`:''}</div><div class="grid2" style="margin-bottom:18px">${fs.map(({q,ps})=>`<button class="card" data-act="pickType" data-id="${q.id}" style="${S.typeId===q.id?'outline:2px solid var(--acc);outline-offset:4px;border-radius:16px':''}"><div class="cov" style="aspect-ratio:4/3;background:var(--sur3)">${coverHTML(ps[0].id,'')}</div><div class="nm">${esc(q.name)} <span style="color:var(--mut);font-weight:600">· ${ps.length}</span></div></button>`).join('')}</div>`:''}).join('');
+  const folders=quickCats().map(c=>{const fs=sortedItems(c).map(q=>{const ps=bySub.filter(p=>p.tags.some(t=>t.item===q.id));return {q,ps}}).filter(x=>x.ps.length);return fs.length?`<div class="row-head" style="padding-top:4px"><div class="label" style="padding:0">${esc(c.name)}${sub?' · '+esc(sub.name):''}</div>${typeIt?`<button class="link" data-act="pickType" data-id="">Show all</button>`:''}</div><div class="grid2" style="margin-bottom:18px">${fs.map(({q,ps})=>{const tc=it.typeCovers&&it.typeCovers[q.id];const cid=tc&&photoById(tc.id)?tc.id:ps[0].id;return `<button class="card" data-act="pickType" data-id="${q.id}" style="${S.typeId===q.id?'outline:2px solid var(--acc);outline-offset:4px;border-radius:16px':''}"><div class="cov" style="aspect-ratio:4/3;background:var(--sur3)">${coverImg(cid,tc&&tc.id===cid?tc.crop:null)}</div><div class="nm">${esc(q.name)} <span style="color:var(--mut);font-weight:600">· ${ps.length}</span></div></button>`}).join('')}</div>`:''}).join('');
   const crumbs=[it.name,sub&&sub.name,typeIt&&typeIt.name].filter(Boolean).join(' · ');
   const childCats=S.cats.filter(c=>c.groupCat===cat.id&&c.enabled);
   const head=selHead(`<button class="icon-btn" data-act="back" aria-label="Back">${I.back}</button>`,`<button class="pill" data-act="selStart" ${shown.length?'':'disabled'}>Select</button><button class="icon-btn" data-act="editItem" aria-label="Edit">${I.edit}</button>`);
+  const sortKey=it.subs.length?'nosub:'+it.id:(childCats.length?'nogroup:'+it.id+':'+childCats[0].id:null);
   return `<div class="screen">${head}
   <div class="scroll">
-   <div style="display:flex;align-items:center;gap:14px;padding:0 20px 18px"><div style="width:84px;height:84px;border-radius:42px;background:${colorFor(it.id)};overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:30px;font-weight:800;flex-shrink:0;position:relative">${coverHTML(it.cover,it.name[0]||'?',it.coverCrop)}</div><div><div style="font-size:26px;font-weight:800;letter-spacing:-.02em">${esc(it.name)}</div><div style="font-size:13px;font-weight:600;color:var(--mut)">${groupName(it)?esc(groupName(it))+'<br>':''}${all.length} photo${all.length===1?'':'s'} · ${it.subs.length} ${esc(cat.subLabel.toLowerCase())}</div></div></div>
-   ${it.cover?`<div style="padding:0 20px 14px;margin-top:-8px"><button class="link" data-act="adjustCover">Adjust cover</button></div>`:''}
-   <div class="row-head"><div class="label" style="padding:0">${esc(cat.subLabel)}</div><button class="link" data-act="newSub">+ Add ${esc(cat.subLabel.toLowerCase().replace(/s$/,''))}</button></div>
-   ${it.subs.length?`<div class="grid2" style="margin-bottom:18px">${it.subs.map(s=>{const n=all.filter(p=>p.tags.some(t=>t.item===it.id&&t.sub===s.id)).length;return `<button class="card" data-act="pickSub" data-id="${s.id}" style="${S.subId===s.id?'outline:2px solid var(--acc);outline-offset:4px;border-radius:16px':''}"><div class="cov" style="aspect-ratio:4/3;background:var(--sur3)">${coverHTML(s.cover,'',s.coverCrop)}</div><div class="nm">${esc(s.name)} <span style="color:var(--mut);font-weight:600">· ${n}</span></div></button>`}).join('')}</div>`:''}
-   ${childCats.map(cc=>{const kids=sortedItems(cc).filter(k=>k.groupId===it.id);return kids.length?`<div class="row-head"><div class="label" style="padding:0">${esc(cc.name)}</div><span style="font-size:12px;font-weight:600;color:var(--mut)">${kids.length}</span></div><div class="grid2" style="margin-bottom:18px">${kids.map(k=>itemCard(k,cc,false)).join('')}</div>`:''}).join('')}
+   <div style="display:flex;align-items:center;gap:14px;padding:0 20px 12px"><button data-act="adjustCover" aria-label="Adjust cover" style="width:84px;height:84px;border-radius:42px;background:${colorFor(it.id)};overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:30px;font-weight:800;flex-shrink:0;position:relative">${coverHTML(it.cover,it.name[0]||'?',it.coverCrop)}</button><div><div style="font-size:26px;font-weight:800;letter-spacing:-.02em">${esc(it.name)}</div><div style="font-size:13px;font-weight:600;color:var(--mut)">${groupName(it)?esc(groupName(it))+'<br>':''}${all.length} photo${all.length===1?'':'s'}${it.subs.length?' · '+it.subs.length+' '+esc(cat.subLabel.toLowerCase()):''}</div></div></div>
+   <div class="chips" style="padding-bottom:16px">${sortKey?`<button class="pill" data-act="sortItemQueue" data-k="${sortKey}">${I.sort.replace(/22/g,'16')}Sort ${esc(it.subs.length?'outfits':childCats[0].name.toLowerCase())}</button>`:''}<button class="pill" data-act="shuffle" data-k="${it.id}" ${all.length?'':'disabled'}>${I.shuffle.replace(/18/g,'16')}Shuffle</button>${it.cover?`<button class="pill" data-act="adjustCover">Adjust cover</button>`:''}</div>
+   <div class="row-head"><div class="label" style="padding:0">${esc(cat.subLabel)}</div><button class="link" data-act="newSub">+ Add ${esc(singular(cat.subLabel.toLowerCase()))}</button></div>
+   ${it.subs.length?`<div class="grid2" style="margin-bottom:18px">${it.subs.map(s=>{const n=subCount(it.id,s.id);return `<button class="card ${n?'':'dim'}" data-act="pickSub" data-id="${s.id}" data-lp="sub" style="${S.subId===s.id?'outline:2px solid var(--acc);outline-offset:4px;border-radius:16px':''}"><div class="cov" style="aspect-ratio:4/3;background:var(--sur3)">${coverHTML(s.cover,'',s.coverCrop)}</div><div class="nm">${esc(s.name)} <span style="color:var(--mut);font-weight:600">· ${n}</span></div></button>`}).join('')}</div>`:''}
+   ${childCats.map(cc=>{const kids=sortedItems(cc).filter(k=>k.groupId===it.id);return kids.length?`<div class="row-head"><div class="label" style="padding:0">${esc(cc.name)}</div><span style="font-size:12px;font-weight:600;color:var(--mut)">${kids.length}</span></div><div class="grid2" style="margin-bottom:18px">${kids.map(k=>itemCard(k,cc)).join('')}</div>`:''}).join('')}
    ${folders}
    <div class="row-head"><div class="label" style="padding:0">${sub||typeIt?esc(crumbs):'All '+esc(it.name)+' photos'}</div>${sub||typeIt?`<button class="link" data-act="clearFilters">Show all</button>${sub?`<button class="link" style="margin-left:12px" data-act="editSub" data-id="${sub.id}">Edit</button>${sub.cover?`<button class="link" style="margin-left:12px" data-act="adjustSubCover" data-id="${sub.id}">Adjust cover</button>`:''}`:''}`:'<span style="font-size:12px;font-weight:600;color:var(--mut)">Newest first</span>'}</div>
-   ${shown.length?`<div class="grid3">${shown.map(p=>tileHTML(p,S.select&&S.select.has(p.id))).join('')}</div>`:`<div class="empty">Nothing here yet. Use Sort to tag photos.</div>`}
+   ${shown.length?vgrid('item',shown,{selSet:S.select}):`<div class="empty">Nothing here yet. Use Sort to tag photos.</div>`}
   </div>${S.select?selBar():nav()}</div>`;
 }
-
 function quickRows(draft,act){
-  return quickCats().map(c=>{const its=sortedItems(c);if(!its.length)return'';return `<div class="row-head" style="padding-top:14px"><div class="label" style="padding:0">${esc(c.name)}</div><button class="link" data-act="${act}New" data-cat="${c.id}">+ New</button></div><div class="chips" style="padding-bottom:0">${its.map(i=>{const on=draft.some(t=>t.item===i.id);return `<button class="pill ${on?'acc':''}" data-act="${act}" data-id="${i.id}">${esc(i.name)}${on?' ✓':''}</button>`}).join('')}</div>`}).join('');
+  return quickCats().map(c=>{const its=sortedItems(c);return `<div class="row-head" style="padding-top:14px"><div class="label" style="padding:0">${esc(c.name)}</div><button class="link" data-act="${act}New" data-cat="${c.id}">+ New</button></div><div class="chips" style="padding-bottom:0">${its.map(i=>{const on=draft.some(t=>t.item===i.id);return `<button class="pill ${on?'acc':''}" data-act="${act}" data-id="${i.id}">${esc(i.name)}${on?' ✓':''}</button>`}).join('')||'<span class="note" style="padding:0">None yet</span>'}</div>`}).join('');
 }
+</script>
+<script>
 /* ---------- Sort mode ---------- */
 function sortFilters(){
   const f=[{k:'unsorted',l:'Unsorted',fn:p=>!p.tags.length}];
+  if(S.lastBatch)f.push({k:'last',l:'Last import',fn:p=>p.batch===S.lastBatch});
   for(const c of enabledCats()){const ids=new Set(itemsOf(c.id).map(i=>i.id));if(ids.size)f.push({k:'nocat:'+c.id,l:'No '+c.name.toLowerCase(),fn:p=>!p.tags.some(t=>ids.has(t.item))})}
-  for(const i of S.items)if(i.subs.length){const c=catById(i.cat);f.push({k:'nosub:'+i.id,l:i.name+' · no '+c.subLabel.toLowerCase().replace(/s$/,''),fn:p=>p.tags.some(t=>t.item===i.id)&&!p.tags.some(t=>t.item===i.id&&t.sub)})}
-  for(const c of enabledCats()){const g=groupCatOf(c);if(!g)continue;const ids=new Set(itemsOf(c.id).map(i=>i.id));for(const gi of itemsOf(g.id))if(S.photos.some(p=>p.tags.some(t=>t.item===gi.id)))f.push({k:'nogroup:'+gi.id+':'+c.id,l:gi.name+' · no '+c.name.toLowerCase(),fn:p=>p.tags.some(t=>t.item===gi.id)&&!p.tags.some(t=>ids.has(t.item))})}
+  for(const i of S.items)if(i.subs.length){const c=catById(i.cat);f.push({k:'nosub:'+i.id,l:i.name+' · no '+singular(c.subLabel.toLowerCase()),fn:p=>p.tags.some(t=>t.item===i.id)&&!p.tags.some(t=>t.item===i.id&&t.sub)})}
+  for(const c of enabledCats()){const g=groupCatOf(c);if(!g)continue;const ids=new Set(itemsOf(c.id).map(i=>i.id));for(const gi of itemsOf(g.id))if(count(gi.id))f.push({k:'nogroup:'+gi.id+':'+c.id,l:gi.name+' · no '+c.name.toLowerCase(),fn:p=>p.tags.some(t=>t.item===gi.id)&&!p.tags.some(t=>ids.has(t.item))})}
   f.push({k:'all',l:'Everything',fn:()=>true});
   return f;
 }
 function startSort(filter){
   if(filter)S.sortFilter=filter;
-  const f=sortFilters().find(x=>x.k===S.sortFilter)||sortFilters()[0];S.sortFilter=f.k;
-  S.sortQueue=S.photos.filter(f.fn).map(p=>p.id);S.sortIdx=0;
+  const fs=sortFilters();const f=fs.find(x=>x.k===S.sortFilter)||fs[0];S.sortFilter=f.k;
+  S.sortQueue=S.photos.filter(f.fn).map(p=>p.id);S.sortIdx=0;S.sortDone=[];
   loadDraft();go('sort');
 }
 function loadDraft(){const p=photoById(S.sortQueue[S.sortIdx]);S.draft=p?p.tags.map(t=>({...t})):[];S.sortCat=(S.sortCat&&mainCats().some(c=>c.id===S.sortCat))?S.sortCat:(primaryCat()&&primaryCat().id);const it=S.sortItem&&itemById(S.sortItem);if(!it||it.cat!==S.sortCat)S.sortItem=null}
+function recentFirst(its){const r=new Map(S.recent.map((id,i)=>[id,i]));return its.slice().sort((a,b)=>{const ra=r.has(a.id)?r.get(a.id):1e9,rb=r.has(b.id)?r.get(b.id):1e9;return ra-rb||a.order-b.order})}
 function sortView(){
-  const p=photoById(S.sortQueue[S.sortIdx]);const fs=sortFilters();
-  const chips=`<div class="chips">${fs.map(f=>`<button class="pill ${S.sortFilter===f.k?'on':''}" data-act="sortFilter" data-k="${f.k}">${esc(f.l)}</button>`).join('')}</div>`;
+  const p=photoById(S.sortQueue[S.sortIdx]);const fs=sortFilters();const cur=fs.find(f=>f.k===S.sortFilter);
+  const chips=`<div class="chips"><button class="pill on" data-act="sortFilterSheet">${I.filter}${esc(cur?cur.l:'Filter')}</button>${fs.slice(0,2).filter(f=>f.k!==S.sortFilter).map(f=>`<button class="pill" data-act="sortFilter" data-k="${f.k}">${esc(f.l)}</button>`).join('')}</div>`;
   const head=`<div class="head"><div style="display:flex;align-items:center;gap:10px"><button class="icon-btn" data-act="closeSort" aria-label="Close">${I.x}</button><div style="font-size:18px;font-weight:800">Sort</div></div><div style="font-size:14px;font-weight:600;color:var(--mut)">${p?`${S.sortIdx+1} of ${S.sortQueue.length}`:''}</div></div>`;
-  if(!p)return `<div class="screen">${head}${chips}<div class="empty" style="flex:1">${S.sortQueue.length?'All done — every photo in this filter is sorted.':'Nothing matches this filter.'}<br>Pick another filter, or add more photos.</div>${nav()}</div>`;
-  const cats=mainCats();const cat=catById(S.sortCat)||cats[0];const its=sortedItems(cat);const it=itemById(S.sortItem);
+  if(!p)return `<div class="screen">${head}${chips}<div class="empty" style="flex:1">${S.sortQueue.length?'All done — every photo in this filter is sorted.':'Nothing matches this filter.'}<br>Pick another filter, or add more photos.</div>${S.sortIdx>0?`<div class="bar"><button class="btn" data-act="prev">${I.prev}Previous</button></div>`:''}${nav()}</div>`;
+  const cats=mainCats();const cat=catById(S.sortCat)||cats[0];const its=recentFirst(sortedItems(cat));const it=itemById(S.sortItem);
   const catRow=cats.length>1?`<div class="chips" style="padding-bottom:8px">${cats.map(c=>`<button class="pill ${c.id===cat.id?'acc':''}" data-act="sortCat" data-k="${c.id}">${esc(c.name)}</button>`).join('')}</div>`:'';
   const itemRow=`<div class="row-head"><div class="label" style="padding:0">${esc(cat.name)}</div><button class="link" data-act="newItemSort">+ New</button></div><div class="hrow">${its.map(i=>{const on=it&&it.id===i.id;const tagged=S.draft.some(t=>t.item===i.id);return `<button class="av ${on?'on':''}" data-act="sortItem" data-id="${i.id}"><div class="c" style="background:${colorFor(i.id)}">${coverHTML(i.cover,i.name[0]||'?',i.coverCrop)}</div><div>${esc(i.name)}${tagged?' ✓':''}</div></button>`}).join('')||'<div class="note" style="padding:0">No items yet — tap + New.</div>'}</div>`;
-  const subRow=it?`<div class="row-head" style="padding-top:14px"><div class="label" style="padding:0">${esc(it.name)} · ${esc(cat.subLabel.toLowerCase())}</div><button class="link" data-act="newSubSort">+ New</button></div><div class="hrow" style="gap:10px">${[{id:null,name:'No '+cat.subLabel.toLowerCase().replace(/s$/,'')},...it.subs].map(s=>{const on=S.draft.some(t=>t.item===it.id&&(t.sub||null)===s.id);return `<button class="sq ${on?'on':''}" data-act="sortSub" data-id="${s.id||''}"><div class="c">${s.id?coverHTML(s.cover,'',s.coverCrop):'<span style="color:var(--mut)">—</span>'}</div><div>${esc(s.name)}${on?' ✓':''}</div></button>`}).join('')}</div>`:'';
+  const subRow=it?`<div class="row-head" style="padding-top:14px"><div class="label" style="padding:0">${esc(it.name)} · ${esc(cat.subLabel.toLowerCase())}</div><button class="link" data-act="newSubSort">+ New</button></div><div class="hrow" style="gap:10px">${[{id:null,name:'No '+singular(cat.subLabel.toLowerCase())},...it.subs].map(s=>{const on=S.draft.some(t=>t.item===it.id&&(t.sub||null)===s.id);return `<button class="sq ${on?'on':''}" data-act="sortSub" data-id="${s.id||''}"><div class="c">${s.id?coverHTML(s.cover,'',s.coverCrop):'<span style="color:var(--mut)">—</span>'}</div><div>${esc(s.name)}${on?' ✓':''}</div></button>`}).join('')}</div>`:'';
   const tags=`<div class="tags">${S.draft.map((t,i)=>{const l=tagLabel(t);const c=colorFor(t.item);return l?`<button class="tag" data-act="draftRm" data-i="${i}"><span class="dot" style="background:${c}"></span>${esc(l)}<span class="x">${I.x.replace(/18/g,'10')}</span></button>`:''}).join('')||'<span style="font-size:12px;font-weight:600;color:var(--mut);align-self:center">No tags yet — pick below</span>'}</div>`;
-  return `<div class="screen">${head}${chips}<div class="scroll" style="padding-bottom:8px"><button class="stage" style="height:38vh;width:calc(100% - 40px)" data-act="openCur" aria-label="Open photo"><img src="${fullUrl(p)}" alt="" data-p="${p.id}" data-k="f"></button><div style="text-align:center;font-size:12px;font-weight:600;color:var(--mut);padding-top:8px">${esc(p.name)}</div>${tags}<div style="height:12px"></div>${catRow}${itemRow}${subRow}${quickRows(S.draft,'sortQuick')}</div>
-  <div class="bar"><button class="btn" data-act="skip">Skip</button><button class="btn pri" data-act="saveNext">Save &amp; next</button></div></div>`;
+  const changed=JSON.stringify(S.draft)!==JSON.stringify(p.tags);
+  return `<div class="screen">${head}${chips}<div class="scroll" style="padding-bottom:8px"><button class="stage" id="sortStage" style="height:${it?'22vh':'36vh'};width:calc(100% - 40px)" data-act="openCur" aria-label="Open photo"><img alt="" data-p="${p.id}" data-k="f"></button><div style="text-align:center;font-size:12px;font-weight:600;color:var(--mut);padding-top:8px">${esc(p.name)}</div>${tags}<div style="height:12px"></div>${catRow}${itemRow}${subRow}${quickRows(S.draft,'sortQuick')}</div>
+  <div class="bar"><button class="btn" style="flex:0 0 52px;padding:0" data-act="prev" aria-label="Previous" ${S.sortIdx>0?'':'disabled'}>${I.prev}</button><button class="btn" data-act="skip">Skip</button><button class="btn pri" data-act="saveNext">${changed||S.draft.length?'Save &amp; next':'Next'}</button></div></div>`;
 }
 function addTag(arr,itemId,subId){if(arr.some(t=>t.item===itemId&&(t.sub||null)===(subId||null)))return;if(!subId&&arr.some(t=>t.item===itemId))return;if(subId){const k=arr.findIndex(t=>t.item===itemId&&!t.sub);if(k>=0)arr.splice(k,1)}arr.push({item:itemId,sub:subId||null})}
 function toggleDraft(itemId,subId){
   const i=S.draft.findIndex(t=>t.item===itemId&&(t.sub||null)===(subId||null));
-  if(i>=0)S.draft.splice(i,1);
-  else addTag(S.draft,itemId,subId);
+  if(i>=0)S.draft.splice(i,1);else addTag(S.draft,itemId,subId);
+}
+function sortFilterSheet(){
+  const fs=sortFilters();
+  sheet('Sort filter',`<div class="search"><input id="fq" placeholder="Search filters" autocomplete="off"></div><div class="list" id="fl"></div>`,el=>{
+    const paint=q=>{const L=el.querySelector('#fl');const list=fs.filter(f=>!q||f.l.toLowerCase().includes(q));L.innerHTML=list.map(f=>`<button class="li" data-k="${f.k}"><div class="t">${esc(f.l)}</div>${f.k===S.sortFilter?I.check:I.chev}</button>`).join('')||'<div class="empty">No filter matches.</div>';L.querySelectorAll('[data-k]').forEach(b=>b.onclick=()=>{closeSheet();startSort(b.dataset.k)})};
+    paint('');const inp=el.querySelector('#fq');inp.oninput=()=>paint(inp.value.trim().toLowerCase());
+  });
 }
 
 /* ---------- Favorites ---------- */
@@ -462,8 +664,8 @@ function favView(){
   const list=S.favFilter==='all'?favs:favs.filter(p=>p.tags.some(t=>t.item===S.favFilter));
   const head=selHead('<h1 class="title">Favorites</h1>',`<button class="pill" data-act="selStart" ${favs.length?'':'disabled'}>Select</button><button class="pill" data-act="shuffle" data-k="fav">${I.shuffle.replace(/18/g,'16')}Shuffle</button>`);
   return `<div class="screen">${head}
-  <div class="chips"><button class="pill ${S.favFilter==='all'?'on':''}" data-act="favFilter" data-k="all">All · ${favs.length}</button>${its.map(i=>`<button class="pill ${S.favFilter===i.id?'on':''}" data-act="favFilter" data-k="${i.id}">${esc(i.name)} · ${favs.filter(p=>p.tags.some(t=>t.item===i.id)).length}</button>`).join('')}</div>
-  <div class="scroll">${list.length?`<div class="grid2" style="gap:6px">${list.map(p=>tileHTML(p,S.select&&S.select.has(p.id))).join('')}</div><div class="note">Open any photo to set it as a cover for a character or outfit.</div>`:'<div class="empty">No favorites yet.<br>Open a photo and tap the star.</div>'}</div>${S.select?selBar():nav()}</div>`;
+  <div class="chips"><button class="pill ${S.favFilter==='all'?'on':''}" data-act="favFilter" data-k="all">All · ${favs.length}</button>${its.map(i=>`<button class="pill ${S.favFilter===i.id?'on':''}" data-act="favFilter" data-k="${i.id}">${esc(i.name)} · ${favs.reduce((n,p)=>n+(p.tags.some(t=>t.item===i.id)?1:0),0)}</button>`).join('')}</div>
+  <div class="scroll">${list.length?vgrid('fav',list,{cols:2,gap:6,selSet:S.select}):'<div class="empty">No favorites yet.<br>Open a photo and tap the star.</div>'}</div>${S.select?selBar():nav()}</div>`;
 }
 
 /* ---------- Shuffle ---------- */
@@ -471,33 +673,39 @@ function shufflePool(){const k=S.shufFilter;if(k==='fav')return S.photos.filter(
 function pickRandom(){const pool=shufflePool();if(!pool.length){S.shufId=null;return}let p=pool[Math.floor(Math.random()*pool.length)];if(pool.length>1&&p.id===S.shufId)p=pool[(pool.indexOf(p)+1)%pool.length];S.shufId=p.id}
 function shuffleView(){
   const p=photoById(S.shufId);
-  const its=S.items.filter(i=>S.photos.some(p=>p.tags.some(t=>t.item===i.id)));
+  const its=S.items.filter(i=>count(i.id)&&!catById(i.cat).quick);
   const chip=(k,l)=>`<button class="pill ${S.shufFilter===k?'on':''}" data-act="shufFilter" data-k="${k}">${esc(l)}</button>`;
   return `<div class="screen"><div class="head"><button class="icon-btn" data-act="back" aria-label="Close">${I.x}</button><div style="font-size:18px;font-weight:800">Shuffle</div><div style="width:44px"></div></div>
   <div class="chips">${chip('all','Everything')}${chip('fav','Favorites')}${its.map(i=>chip(i.id,i.name)).join('')}</div>
-  <div class="scroll" style="display:flex;flex-direction:column">${p?`<div class="stage" style="flex:1;min-height:0;height:52vh"><img src="${fullUrl(p)}" alt="" data-p="${p.id}" data-k="f"></div><div class="tags">${p.tags.map(t=>{const l=tagLabel(t);return l?`<span class="tag"><span class="dot" style="background:${colorFor(t.item)}"></span>${esc(l)}</span>`:''}).join('')}</div>`:'<div class="empty">Nothing to show for this filter.</div>'}</div>
+  <div class="scroll" style="display:flex;flex-direction:column">${p?`<div class="stage" style="flex:1;min-height:0;height:52vh"><img alt="" data-p="${p.id}" data-k="f"></div><div class="tags">${p.tags.map(t=>{const l=tagLabel(t);return l?`<span class="tag"><span class="dot" style="background:${colorFor(t.item)}"></span>${esc(l)}</span>`:''}).join('')}</div>`:'<div class="empty">Nothing to show for this filter.</div>'}</div>
   <div class="bar"><button class="btn" style="flex:0 0 52px;padding:0" data-act="shufFav" aria-label="Favorite" ${p?'':'disabled'}>${p&&p.fav?I.starF:I.star}</button><button class="btn" style="flex:0 0 52px;padding:0" data-act="shufOpen" aria-label="Open" ${p?'':'disabled'}>${I.tagI}</button><button class="btn pri" data-act="shufNext">${I.shuffle}Another</button></div></div>`;
 }
 
-/* ---------- More: categories & tools ---------- */
+/* ---------- More ---------- */
 function moreView(){
-  const p=primaryCat();
-  const cats=S.cats.slice().sort((a,b)=>a.order-b.order);
+  const p=primaryCat();const cats=S.cats.slice().sort((a,b)=>a.order-b.order);
+  setTimeout(fillStorage,0);
   return `<div class="screen"><div class="head"><h1 class="title">More</h1></div><div class="scroll">
-  <div class="label">Browse</div><div class="list">${enabledCats().filter(c=>c.id!==(p&&p.id)).map(c=>`<button class="li" data-nav="cat:${c.id}"><div><div class="t">${esc(c.name)}</div><div class="s">${itemsOf(c.id).length} items</div></div>${I.chev}</button>`).join('')}<button class="li" data-act="shuffle" data-k="all"><div class="t">Shuffle</div>${I.chev}</button></div>
-  <div class="label" style="padding-top:22px">Tab categories</div><div class="note" style="padding-top:0;padding-bottom:10px">The first enabled category gets its own tab. Others show above. A photo can carry tags from any of them.</div>
-  <div class="list">${cats.map((c,i)=>`<div class="li"><button style="flex:1;text-align:left;color:inherit" data-act="editCat" data-id="${c.id}"><div class="t">${esc(c.name)}</div><div class="s">${c.quick?'Quick toggles':'Sub-buckets: '+esc(c.subLabel)}${groupLabelOf(c)?' · grouped by '+esc(groupLabelOf(c).toLowerCase()):''} · ${itemsOf(c.id).length} items</div></button><button class="pill" style="height:30px;padding:0 8px" data-act="catUp" data-id="${c.id}" aria-label="Move up" ${i?'':'disabled'}>${I.up}</button><button class="sw ${c.enabled?'on':''}" data-act="catToggle" data-id="${c.id}" aria-label="Enable ${esc(c.name)}"></button></div>`).join('')}</div>
+  <div class="label">Browse</div><div class="list">${enabledCats().filter(c=>c.id!==(p&&p.id)).map(c=>`<button class="li" data-nav="cat:${c.id}"><div><div class="t">${esc(c.name)}</div><div class="s">${itemsOf(c.id).length} items</div></div>${I.chev}</button>`).join('')}<button class="li" data-act="shuffle" data-k="all"><div class="t">Shuffle</div>${I.chev}</button><button class="li" data-act="search"><div class="t">Search</div>${I.chev}</button></div>
+  <div class="label" style="padding-top:22px">Storage</div><div class="list"><div class="li" style="flex-direction:column;align-items:stretch"><div id="storage" class="s" style="margin:0">Checking…</div><div class="meter"><div id="storageBar" style="width:0"></div></div><div class="s" style="margin:0">${S.photos.length} photos · ${S.items.length} tags</div></div></div>
+  <div class="label" style="padding-top:22px">Tab categories</div><div class="note" style="padding-top:0;padding-bottom:10px">The first category is the Library tab's default. A photo can carry tags from any of them.</div>
+  <div class="list">${cats.map((c,i)=>`<div class="li"><button style="flex:1;text-align:left;color:inherit" data-act="editCat" data-id="${c.id}"><div class="t">${esc(c.name)}</div><div class="s">${c.quick?'Quick toggles':'Sub-buckets: '+esc(c.subLabel)}${groupLabelOf(c)?' · grouped by '+esc(groupLabelOf(c).toLowerCase()):''} · ${itemsOf(c.id).length} items</div></button><button class="pill tall" style="padding:0 10px" data-act="catUp" data-id="${c.id}" aria-label="Move up" ${i?'':'disabled'}>▲</button><button class="sw ${c.enabled?'on':''}" data-act="catToggle" data-id="${c.id}" aria-label="Enable ${esc(c.name)}"></button></div>`).join('')}</div>
   <div style="padding:10px 20px 0"><button class="btn" style="width:100%;border:1px dashed var(--sur4);background:none;color:var(--acc2)" data-act="newCat">${I.plus.replace(/20/g,'18')}New category</button></div>
   <div class="label" style="padding-top:22px">Tags</div><div class="list"><button class="li" data-act="manage"><div><div class="t">Manage tags</div><div class="s">Rename, add or delete characters, shows, outfits and types</div></div>${I.chev}</button></div>
   <div class="label" style="padding-top:22px">Tools</div><div class="list">
    <button class="li" data-act="dupes"><div class="t">Find duplicates</div>${I.chev}</button>
-   <button class="li" data-act="exportAll"><div><div class="t">Export backup</div><div class="s">One .zip with every photo and all tags. AirDrop it, save to Files, or move it to a PC.</div></div>${I.chev}</button>
-   <button class="li" data-act="importZip"><div><div class="t">Import backup</div><div class="s">Merge a backup .zip into this library. Existing photos are kept.</div></div>${I.chev}</button>
-   <div class="li"><div><div class="t">Share sheet import</div><div class="s">On Android/Chrome, share images to this app from any app. On iPhone, use Add photos.</div></div></div>
-   <button class="li" data-act="wipe"><div><div class="t" style="color:var(--acc2)">Delete everything</div><div class="s">${S.photos.length} photos, ${S.items.length} items</div></div></button>
+   <button class="li" data-act="exportAll"><div><div class="t">Export backup</div><div class="s">Zips of photos + tags, ${EXPORT_PART} photos per part. AirDrop, save to Files, or move to a PC.</div></div>${I.chev}</button>
+   <button class="li" data-act="importZip"><div><div class="t">Import zip</div><div class="s">A backup part, or any zip of images. Photos already here are skipped.</div></div>${I.chev}</button>
+   <div class="li"><div><div class="t">Share sheet import</div><div class="s">On Android/Chrome, share images to this app from any app. On iPhone, use Add.</div></div></div>
+   <button class="li" data-act="wipe"><div><div class="t" style="color:var(--acc2)">Delete everything</div><div class="s">${S.photos.length} photos, ${S.items.length} tags</div></div></button>
   </div>
   <div class="note">Photos live only on this device inside the app. Export a backup before deleting the app or clearing browser data.</div>
   </div>${nav()}</div>`;
+}
+async function fillStorage(){
+  const el=$('#storage'),bar=$('#storageBar');if(!el)return;
+  try{const e=await navigator.storage.estimate();const u=e.usage||0,q=e.quota||0;el.textContent=`${fmtMB(u)} used${q?' of '+fmtMB(q)+' available to this app':''}`;if(bar&&q)bar.style.width=Math.min(100,u/q*100).toFixed(1)+'%'}
+  catch(err){el.textContent='Storage estimate not available'}
 }
 
 /* ---------- Manage tags ---------- */
@@ -508,22 +716,27 @@ function manageView(){
   <div class="chips">${cats.map(c=>`<button class="pill ${c.id===cat.id?'on':''}" data-act="manageCat" data-k="${c.id}">${esc(c.name)}</button>`).join('')}</div>
   <div class="scroll">
    <div class="row-head"><div class="label" style="padding:0">${esc(cat.name)}${cat.quick?' (quick toggles)':''}</div><button class="link" data-act="editCat" data-id="${cat.id}">Edit category</button></div>
-   <div class="list">${its.map(i=>{const n=S.photos.filter(p=>p.tags.some(t=>t.item===i.id)).length;return `<div class="li" style="flex-direction:column;align-items:stretch;gap:8px"><div style="display:flex;align-items:center;gap:10px"><div style="width:36px;height:36px;border-radius:18px;background:${colorFor(i.id)};overflow:hidden;display:flex;align-items:center;justify-content:center;font-weight:800;color:#111114;flex-shrink:0">${coverHTML(i.cover,i.name[0]||'?',i.coverCrop)}</div><div style="flex:1;min-width:0"><div class="t">${esc(i.name)}</div><div class="s">${groupName(i)?esc(groupName(i))+' · ':''}${n} photo${n===1?'':'s'}</div></div><button class="pill" style="height:32px;padding:0 10px" data-act="manageEdit" data-id="${i.id}">Rename</button><button class="pill" style="height:32px;padding:0 10px;color:var(--acc2)" data-act="manageDel" data-id="${i.id}">Delete</button></div>${cat.quick?'':`<div style="display:flex;flex-wrap:wrap;gap:6px;padding-left:46px">${i.subs.map(sb=>`<button class="pill" style="height:30px;padding:0 10px" data-act="manageSub" data-id="${i.id}" data-sub="${sb.id}">${esc(sb.name)} ${I.edit.replace(/18/g,'12')}</button>`).join('')}<button class="pill" style="height:30px;padding:0 10px;color:var(--acc2)" data-act="manageSubNew" data-id="${i.id}">+ ${esc(cat.subLabel.toLowerCase().replace(/s$/,''))}</button></div>`}</div>`}).join('')||'<div class="empty">Nothing here yet.</div>'}</div>
-   <div style="padding:10px 20px 0"><button class="btn" style="width:100%;border:1px dashed var(--sur4);background:none;color:var(--acc2)" data-act="manageNew">${I.plus.replace(/20/g,'18')}New ${esc(cat.name.toLowerCase().replace(/s$/,''))}</button></div>
-   ${g?`<div class="note">Deleting a ${esc(g.name.toLowerCase().replace(/s$/,''))} also deletes the ${esc(cat.name.toLowerCase())} that belong to it.</div>`:''}
+   <div class="list">${its.map(i=>{const n=count(i.id);return `<div class="li" style="flex-direction:column;align-items:stretch;gap:8px"><div style="display:flex;align-items:center;gap:10px"><div style="width:40px;height:40px;border-radius:20px;background:${colorFor(i.id)};overflow:hidden;display:flex;align-items:center;justify-content:center;font-weight:800;color:#111114;flex-shrink:0;position:relative">${coverHTML(i.cover,i.name[0]||'?',i.coverCrop)}</div><div style="flex:1;min-width:0"><div class="t">${esc(i.name)}</div><div class="s">${groupName(i)?esc(groupName(i))+' · ':''}${n} photo${n===1?'':'s'}</div></div><button class="pill tall" data-act="manageEdit" data-id="${i.id}">Rename</button><button class="pill tall" style="color:var(--acc2)" data-act="manageDel" data-id="${i.id}">Delete</button></div>${cat.quick?'':`<div style="display:flex;flex-wrap:wrap;gap:6px;padding-left:50px">${i.subs.map(sb=>`<button class="pill tall" data-act="manageSub" data-id="${i.id}" data-sub="${sb.id}">${esc(sb.name)} ${I.edit.replace(/18/g,'12')}</button>`).join('')}<button class="pill tall" style="color:var(--acc2)" data-act="manageSubNew" data-id="${i.id}">+ ${esc(singular(cat.subLabel.toLowerCase()))}</button></div>`}</div>`}).join('')||'<div class="empty">Nothing here yet.</div>'}</div>
+   <div style="padding:10px 20px 0"><button class="btn" style="width:100%;border:1px dashed var(--sur4);background:none;color:var(--acc2)" data-act="manageNew">${I.plus.replace(/20/g,'18')}New ${esc(singular(cat.name.toLowerCase()))}</button></div>
+   ${g?`<div class="note">Deleting a ${esc(singular(g.name.toLowerCase()))} also deletes the ${esc(cat.name.toLowerCase())} that belong to it.</div>`:''}
   </div>${nav()}</div>`;
 }
+
 /* ---------- Duplicates ---------- */
 function findDupes(){
-  const ps=S.photos.slice();const pairs=[];const used=new Set();
-  for(let i=0;i<ps.length;i++)for(let j=i+1;j<ps.length;j++){const d=hamming(ps[i].hash,ps[j].hash);if(d<=6&&!used.has(ps[j].id)){pairs.push({a:ps[i],b:ps[j],d});used.add(ps[j].id)}}
-  return pairs.map(({a,b,d})=>{const keep=a.full.size>=b.full.size?a:b;const rm=keep===a?b:a;return {keep,rm,d}});
+  // bucket by 8-bit segments: two hashes within 6 bits always share at least two of eight segments
+  const ps=S.photos.filter(p=>p.hash&&p.hash.length===64);const buckets=new Map();
+  ps.forEach((p,i)=>{for(let s=0;s<8;s++){const k=s+':'+p.hash.slice(s*8,s*8+8);let a=buckets.get(k);if(!a)buckets.set(k,a=[]);a.push(i)}});
+  const seen=new Set();const pairs=[];const used=new Set();
+  for(const arr of buckets.values()){if(arr.length<2||arr.length>400)continue;for(let x=0;x<arr.length;x++)for(let y=x+1;y<arr.length;y++){const i=arr[x],j=arr[y];const key=i<j?i+'-'+j:j+'-'+i;if(seen.has(key))continue;seen.add(key);const d=hamming(ps[i].hash,ps[j].hash);if(d<=6){const a=ps[i],b=ps[j];if(used.has(a.id)||used.has(b.id))continue;used.add(b.id);pairs.push({a,b,d})}}}
+  return pairs.map(({a,b,d})=>{const keep=(a.w*a.h)>=(b.w*b.h)?a:b;const rm=keep===a?b:a;return {keep,rm,d}});
 }
 function dupesView(){
   const pairs=S.dupePairs||(S.dupePairs=findDupes().filter(x=>!(S.notDupes||new Set()).has(x.keep.id+'|'+x.rm.id)));
+  const show=pairs.slice(0,60);
   return `<div class="screen"><div class="head" style="justify-content:flex-start;gap:12px"><button class="icon-btn" data-act="back" aria-label="Back">${I.back}</button><h1 class="title sm">Duplicates</h1></div>
-  <div class="scroll"><div class="note" style="padding-top:0;padding-bottom:14px">Compared by image hash. ${pairs.length} pair${pairs.length===1?'':'s'} found in ${S.photos.length} photos. Tags and favorites on the removed copy move to the kept one.</div>
-  ${pairs.length?pairs.map((x,i)=>`<div style="margin:0 20px 12px;padding:14px;border-radius:16px;background:var(--sur);display:flex;flex-direction:column;gap:10px"><div style="display:flex;gap:10px"><div style="flex:1"><div style="aspect-ratio:1;border-radius:10px;overflow:hidden;outline:3px solid var(--acc);outline-offset:-3px"><img src="${thumbUrl(x.keep)}" style="width:100%;height:100%;object-fit:cover" alt="" data-p="${x.keep.id}" data-k="t"></div><div style="font-size:11px;font-weight:700;padding-top:6px">Keep · ${(x.keep.full.size/1048576).toFixed(1)} MB</div></div><div style="flex:1"><div style="aspect-ratio:1;border-radius:10px;overflow:hidden"><img src="${thumbUrl(x.rm)}" style="width:100%;height:100%;object-fit:cover" alt="" data-p="${x.rm.id}" data-k="t"></div><div style="font-size:11px;font-weight:600;color:var(--mut);padding-top:6px">Remove · ${(x.rm.full.size/1048576).toFixed(1)} MB</div></div></div><div style="display:flex;align-items:center;justify-content:space-between"><div style="font-size:12px;font-weight:600;color:var(--mut)">${x.d===0?'Exact match':'Near match'}</div><div style="display:flex;gap:6px"><button class="pill" data-act="dupeSwap" data-i="${i}">Swap</button><button class="pill" data-act="dupeNot" data-i="${i}">Not a dupe</button><button class="pill acc" data-act="dupeRemove" data-i="${i}">Remove</button></div></div></div>`).join(''):'<div class="empty">No duplicates found.</div>'}</div>
+  <div class="scroll"><div class="note" style="padding-top:0;padding-bottom:14px">Compared by image hash. ${pairs.length} pair${pairs.length===1?'':'s'} found in ${S.photos.length} photos${pairs.length>60?' (showing the first 60)':''}. Tags and favorites on the removed copy move to the kept one.</div>
+  ${show.length?show.map((x,i)=>`<div style="margin:0 20px 12px;padding:14px;border-radius:16px;background:var(--sur);display:flex;flex-direction:column;gap:10px"><div style="display:flex;gap:10px"><div style="flex:1"><button data-act="dupeOpen" data-id="${x.keep.id}" style="display:block;width:100%;aspect-ratio:1;border-radius:10px;overflow:hidden;outline:3px solid var(--acc);outline-offset:-3px;background:var(--sur2)"><img alt="" data-p="${x.keep.id}" data-k="t" style="width:100%;height:100%;object-fit:cover"></button><div style="font-size:11px;font-weight:700;padding-top:6px">Keep · ${x.keep.w}×${x.keep.h}</div></div><div style="flex:1"><button data-act="dupeOpen" data-id="${x.rm.id}" style="display:block;width:100%;aspect-ratio:1;border-radius:10px;overflow:hidden;background:var(--sur2)"><img alt="" data-p="${x.rm.id}" data-k="t" style="width:100%;height:100%;object-fit:cover"></button><div style="font-size:11px;font-weight:600;color:var(--mut);padding-top:6px">Remove · ${x.rm.w}×${x.rm.h}</div></div></div><div style="display:flex;align-items:center;justify-content:space-between"><div style="font-size:12px;font-weight:600;color:var(--mut)">${x.d===0?'Exact match':'Near match'}</div><div style="display:flex;gap:6px"><button class="pill tall" data-act="dupeSwap" data-i="${i}">Swap</button><button class="pill tall" data-act="dupeNot" data-i="${i}">Not a dupe</button><button class="pill tall acc" data-act="dupeRemove" data-i="${i}">Remove</button></div></div></div>`).join(''):'<div class="empty">No duplicates found.</div>'}</div>
   <div class="bar"><button class="btn pri" data-act="dupeAll" ${pairs.length?'':'disabled'}>Remove all ${pairs.length}</button></div></div>`;
 }
 async function mergeRemove(keep,rm){
@@ -533,15 +746,26 @@ async function mergeRemove(keep,rm){
   await deletePhotos([rm.id]);
 }
 
-/* ---------- sheets ---------- */
+/* ---------- sheets & dialogs ---------- */
 function sheet(title,bodyHTML,onBind){
   const L=$('#layer');L.innerHTML=`<div class="sheet-bg" data-close><div class="sheet"><div class="h"><h2>${title}</h2><button class="icon-btn" data-close aria-label="Close">${I.x}</button></div><div class="b">${bodyHTML}</div></div></div>`;
   L.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',e=>{if(b.classList.contains('sheet-bg')?e.target===b:true)closeSheet()}));
-  onBind&&onBind(L.firstElementChild);
+  onBind&&onBind(L.firstElementChild);hydrate(L);
 }
 function closeSheet(){$('#layer').innerHTML=''}
+function ask(msg,{ok='OK',danger=false,single=false,title=''}={}){
+  return new Promise(res=>{
+    const prev=$('#layer').innerHTML;
+    const L=$('#layer');const box=document.createElement('div');box.className='sheet-bg';box.style.zIndex=60;box.style.alignItems='center';box.style.padding='0 24px';
+    box.innerHTML=`<div style="background:var(--bg2);border-radius:20px;padding:20px;width:100%;max-width:360px"><div style="font-size:15px;font-weight:600;line-height:1.45;white-space:pre-line">${esc(msg)}</div><div style="display:flex;gap:8px;margin-top:18px">${single?'':'<button class="btn" data-no style="height:46px">Cancel</button>'}<button class="btn ${danger?'':'pri'}" data-yes style="height:46px;${danger?'background:var(--acc);color:#111114;font-weight:800':''}">${esc(ok)}</button></div></div>`;
+    document.body.appendChild(box);
+    const done=v=>{box.remove();res(v)};
+    box.querySelector('[data-yes]').onclick=()=>done(true);const no=box.querySelector('[data-no]');if(no)no.onclick=()=>done(false);
+    box.onclick=e=>{if(e.target===box&&!single)done(false)};
+  });
+}
 function formSheet(title,fields,onSave,onDelete,onCancel){
-  const b=`<div class="form">${fields.map(f=>f.type==='select'?`<label>${esc(f.label)}<select name="${f.name}">${f.options.map(o=>`<option value="${esc(o.v)}" ${o.v===f.value?'selected':''}>${esc(o.l)}</option>`).join('')}</select></label>`:`<label>${esc(f.label)}<input name="${f.name}" value="${esc(f.value||'')}" placeholder="${esc(f.ph||'')}" ${f.list?`list="${f.list}"`:''} autocomplete="off"></label>${f.list?`<datalist id="${f.list}">${f.listOpts.map(o=>`<option value="${esc(o)}">`).join('')}</datalist>`:''}`).join('')}
+  const b=`<div class="form">${fields.map(f=>f.type==='select'?`<label>${esc(f.label)}<select name="${f.name}">${f.options.map(o=>`<option value="${esc(o.v)}" ${o.v===f.value?'selected':''}>${esc(o.l)}</option>`).join('')}</select></label>`:`<label>${esc(f.label)}<input name="${f.name}" value="${esc(f.value||'')}" placeholder="${esc(f.ph||'')}" autocomplete="off"></label>`).join('')}
   <button class="btn pri" data-save>Save</button>${onDelete?`<button class="btn danger" data-del>Delete</button>`:''}</div>`;
   sheet(title,b,el=>{
     const first=el.querySelector('input');first&&setTimeout(()=>first.focus(),50);
@@ -556,13 +780,13 @@ function formSheet(title,fields,onSave,onDelete,onCancel){
 }
 function tagSheet(title,initial,onDone,st){
   let draft=initial.map(t=>({...t}));let catId=(st&&st.catId)||(primaryCat()&&primaryCat().id);let itemId=(st&&st.itemId)||null;
-  const reopen=(extra)=>tagSheet(title,draft,onDone,{catId,itemId,...extra});
+  const reopen=()=>tagSheet(title,draft,onDone,{catId,itemId});
   const paint=()=>{
-    const cats=mainCats();const cat=catById(catId)||cats[0];catId=cat.id;const its=sortedItems(cat);const it=itemById(itemId);
+    const cats=mainCats();const cat=catById(catId)||cats[0];catId=cat.id;const its=recentFirst(sortedItems(cat));const it=itemById(itemId);
     $('#tagBody').innerHTML=`<div class="tags" style="justify-content:flex-start">${draft.map((t,i)=>{const l=tagLabel(t);return l?`<button class="tag" data-rm="${i}"><span class="dot" style="background:${colorFor(t.item)}"></span>${esc(l)}<span class="x">${I.x.replace(/18/g,'10')}</span></button>`:''}).join('')||'<span style="font-size:12px;font-weight:600;color:var(--mut)">No tags yet</span>'}</div><div style="height:12px"></div>
     ${cats.length>1?`<div class="chips" style="padding-bottom:8px">${cats.map(c=>`<button class="pill ${c.id===cat.id?'acc':''}" data-cat="${c.id}">${esc(c.name)}</button>`).join('')}</div>`:''}
-    <div class="row-head"><div class="label" style="padding:0">${esc(cat.name)}</div><button class="link" data-newitem>+ New ${esc(cat.name.toLowerCase().replace(/s$/,''))}</button></div><div class="hrow">${its.map(i=>`<button class="av ${it&&it.id===i.id?'on':''}" data-item="${i.id}"><div class="c" style="background:${colorFor(i.id)}">${coverHTML(i.cover,i.name[0]||'?',i.coverCrop)}</div><div>${esc(i.name)}${draft.some(t=>t.item===i.id)?' ✓':''}</div></button>`).join('')||'<div class="note" style="padding:0">No items in this category yet.</div>'}</div>
-    ${it?`<div class="row-head" style="padding-top:14px"><div class="label" style="padding:0">${esc(it.name)} · ${esc(cat.subLabel.toLowerCase())}</div><button class="link" data-newsub>+ New ${esc(cat.subLabel.toLowerCase().replace(/s$/,''))}</button></div><div class="hrow" style="gap:10px">${[{id:null,name:'No '+cat.subLabel.toLowerCase().replace(/s$/,'')},...it.subs].map(s=>{const on=draft.some(t=>t.item===it.id&&(t.sub||null)===s.id);return `<button class="sq ${on?'on':''}" data-sub="${s.id||''}"><div class="c">${s.id?coverHTML(s.cover,'',s.coverCrop):'<span style="color:var(--mut)">—</span>'}</div><div>${esc(s.name)}${on?' ✓':''}</div></button>`}).join('')}</div>`:''}
+    <div class="row-head"><div class="label" style="padding:0">${esc(cat.name)}</div><button class="link" data-newitem>+ New ${esc(singular(cat.name.toLowerCase()))}</button></div><div class="hrow">${its.map(i=>`<button class="av ${it&&it.id===i.id?'on':''}" data-item="${i.id}"><div class="c" style="background:${colorFor(i.id)}">${coverHTML(i.cover,i.name[0]||'?',i.coverCrop)}</div><div>${esc(i.name)}${draft.some(t=>t.item===i.id)?' ✓':''}</div></button>`).join('')||'<div class="note" style="padding:0">No items in this category yet.</div>'}</div>
+    ${it?`<div class="row-head" style="padding-top:14px"><div class="label" style="padding:0">${esc(it.name)} · ${esc(cat.subLabel.toLowerCase())}</div><button class="link" data-newsub>+ New ${esc(singular(cat.subLabel.toLowerCase()))}</button></div><div class="hrow" style="gap:10px">${[{id:null,name:'No '+singular(cat.subLabel.toLowerCase())},...it.subs].map(s=>{const on=draft.some(t=>t.item===it.id&&(t.sub||null)===s.id);return `<button class="sq ${on?'on':''}" data-sub="${s.id||''}"><div class="c">${s.id?coverHTML(s.cover,'',s.coverCrop):'<span style="color:var(--mut)">—</span>'}</div><div>${esc(s.name)}${on?' ✓':''}</div></button>`}).join('')}</div>`:''}
     ${quickCats().map(c=>{const qs=sortedItems(c);return `<div class="row-head" style="padding-top:14px"><div class="label" style="padding:0">${esc(c.name)}</div><button class="link" data-newquick="${c.id}">+ New</button></div><div class="chips" style="padding-bottom:0">${qs.map(i=>{const on=draft.some(t=>t.item===i.id);return `<button class="pill ${on?'acc':''}" data-quick="${i.id}">${esc(i.name)}${on?' ✓':''}</button>`}).join('')||'<span class="note" style="padding:0">None yet</span>'}</div>`}).join('')}
     <div style="padding:16px 20px 0"><button class="btn pri" style="width:100%" data-done>Apply</button></div>`;
     const B=$('#tagBody');
@@ -571,94 +795,126 @@ function tagSheet(title,initial,onDone,st){
     B.querySelectorAll('[data-cat]').forEach(b=>b.onclick=()=>{catId=b.dataset.cat;itemId=null;paint()});
     B.querySelectorAll('[data-item]').forEach(b=>b.onclick=()=>{const i=itemById(b.dataset.item);if(itemId===i.id&&i.subs.length){itemId=null}else{itemId=i.id;if(!i.subs.length){const k=draft.findIndex(t=>t.item===i.id);if(k>=0)draft.splice(k,1);else draft.push({item:i.id,sub:null})}}paint()});
     B.querySelectorAll('[data-sub]').forEach(b=>b.onclick=()=>{const sub=b.dataset.sub||null;const k=draft.findIndex(t=>t.item===itemId&&(t.sub||null)===sub);if(k>=0)draft.splice(k,1);else addTag(draft,itemId,sub);paint()});
-    B.querySelector('[data-done]').onclick=()=>{closeSheet();onDone(draft)};
+    B.querySelector('[data-done]').onclick=()=>{closeSheet();draft.forEach(t=>touchRecent(t.item));onDone(draft)};
     B.querySelector('[data-newitem]').onclick=()=>{closeSheet();itemForm(cat,null,ni=>{if(ni.subs.length)itemId=ni.id;else{addTag(draft,ni.id,null);itemId=null}reopen()},()=>reopen())};
     const ns=B.querySelector('[data-newsub]');if(ns)ns.onclick=()=>{closeSheet();subForm(it,null,sb=>{addTag(draft,it.id,sb.id);reopen()},()=>reopen())};
     B.querySelectorAll('[data-newquick]').forEach(b=>b.onclick=()=>{closeSheet();itemForm(catById(b.dataset.newquick),null,ni=>{addTag(draft,ni.id,null);reopen()},()=>reopen())});
+    hydrate(B);
   };
   sheet(title,'<div id="tagBody"></div>',paint);
 }
+
+/* ---------- viewer ---------- */
 function openViewer(id,list){
   if(!photoById(id))return;
   list=(list&&list.length?list:[id]).filter(photoById);if(!list.includes(id))list=[id,...list];
   const step=d=>{const i=list.indexOf(id)+d;if(i<0||i>=list.length){toast(d>0?'Last photo':'First photo');return}id=list[i];paint()};
   const paint=()=>{const p=photoById(id);if(!p){closeSheet();return}
    const pos=list.length>1?`${list.indexOf(id)+1} / ${list.length}`:'';
-   $('#layer').innerHTML=`<div class="viewer"><div class="vh"><button class="icon-btn" data-v="close" aria-label="Close">${I.x}</button><div style="font-size:13px;font-weight:700;color:var(--mut);align-self:center">${pos}</div><button class="icon-btn" data-v="fav" aria-label="Favorite">${p.fav?I.starF:I.star}</button></div><div class="vi" id="zoomArea"><img src="${fullUrl(p)}" alt="" id="zoomImg" data-p="${p.id}" data-k="f" style="touch-action:none;will-change:transform" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'empty',textContent:'This photo could not be loaded. Tap Revert if it is available, otherwise re-import it.'}))"></div>
-   <div class="vf"><div class="tags" style="padding-top:4px">${p.tags.map(t=>{const l=tagLabel(t);return l?`<span class="tag"><span class="dot" style="background:${colorFor(t.item)}"></span>${esc(l)}</span>`:''}).join('')||'<span style="font-size:12px;font-weight:600;color:var(--mut)">No tags</span>'}</div><div style="text-align:center;font-size:11px;font-weight:600;color:var(--mut);padding:4px 0 8px">${esc(p.name)} · ${new Date(p.added).toLocaleDateString()}</div>
-   <div class="bar" style="padding-bottom:4px;background:none"><button class="btn sm" data-v="tags">${I.tagI}Tags</button><button class="btn sm" data-v="edit">${I.edit.replace(/18/g,"16")}Edit</button>${p.orig?`<button class="btn sm" data-v="revert">Revert</button>`:""}<button class="btn sm" data-v="cover" ${p.tags.length?'':'disabled'}>Set as cover</button><button class="btn sm danger" data-v="del" aria-label="Delete">${I.trash}</button></div></div></div>`;
-   const L=$('#layer');
+   $('#layer').innerHTML=`<div class="viewer"><div class="vh"><button class="icon-btn" data-v="close" aria-label="Close">${I.x}</button><div style="font-size:13px;font-weight:700;color:var(--mut);align-self:center">${pos}</div><button class="icon-btn" data-v="fav" aria-label="Favorite">${p.fav?I.starF:I.star}</button></div><div class="vi" id="zoomArea"><img alt="" id="zoomImg" data-p="${p.id}" data-k="f" style="touch-action:none;will-change:transform" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'empty',textContent:'This photo could not be loaded. Tap Revert if it is available, otherwise re-import it.'}))"></div>
+   <div class="vf"><div class="tags" style="padding-top:4px">${p.tags.map(t=>{const l=tagLabel(t);return l?`<span class="tag"><span class="dot" style="background:${colorFor(t.item)}"></span>${esc(l)}</span>`:''}).join('')||'<span style="font-size:12px;font-weight:600;color:var(--mut)">No tags</span>'}</div><div style="text-align:center;font-size:11px;font-weight:600;color:var(--mut);padding:4px 0 8px">${esc(p.name)} · ${new Date(p.added).toLocaleDateString()}${p.w?' · '+p.w+'×'+p.h:''}</div>
+   <div class="chips" style="padding:0 14px 6px"><button class="btn sm" data-v="tags">${I.tagI}Tags</button><button class="btn sm" data-v="edit">${I.edit.replace(/18/g,"16")}Edit</button>${p.hasOrig?`<button class="btn sm" data-v="revert">Revert</button>`:""}<button class="btn sm" data-v="cover" ${p.tags.length?'':'disabled'}>Set as cover</button><button class="btn sm" data-v="share" aria-label="Share">${I.share}</button><button class="btn sm danger" data-v="del" aria-label="Delete">${I.trash}</button></div></div></div>`;
+   const L=$('#layer');hydrate(L);
    L.querySelector('[data-v="close"]').onclick=()=>{closeSheet();render()};
    L.querySelector('[data-v="fav"]').onclick=async()=>{p.fav=!p.fav;await savePhoto(p);paint()};
    attachZoom($('#zoomArea'),$('#zoomImg'),list.length>1?step:null);
    L.onkeydown=e=>{if(e.key==='ArrowRight')step(1);else if(e.key==='ArrowLeft')step(-1);else if(e.key==='Escape'){closeSheet();render()}};L.tabIndex=-1;L.focus();
    L.querySelector('[data-v="edit"]').onclick=()=>openEditor(p,paint);
-   const rv=L.querySelector('[data-v="revert"]');if(rv)rv.onclick=async()=>{if(!confirm('Restore the original photo as imported? Tags stay.'))return;const o=p.orig;let full;try{const buf=o.buf||await o.full.arrayBuffer();if(!buf||!buf.byteLength)throw 0;full=new Blob([buf],{type:'image/jpeg'});const im=await loadImage(full);const thumb=await toBlob(draw(im,320),.8);Object.assign(p,{full,thumb,w:o.w,h:o.h,hash:o.hash})}catch(e){toast('Original could not be read on this device');return}delete p.orig;['t','f'].forEach(k=>{if(urls[k+p.id]){URL.revokeObjectURL(urls[k+p.id]);delete urls[k+p.id]}});await saveBlobs(p);await savePhoto(p);toast('Original restored');paint()};
-   L.querySelector('[data-v="tags"]').onclick=()=>tagSheet('Tags',p.tags,async d=>{p.tags=d;await savePhoto(p);paint()});
+   const rv=L.querySelector('[data-v="revert"]');if(rv)rv.onclick=async()=>{if(!await ask('Restore the original photo as imported? Tags stay.',{ok:'Revert'}))return;try{const r=await getFull(p.id);const o=r&&r.orig;const buf=o&&(o.buf||(o.full&&await o.full.arrayBuffer()));if(!buf||!buf.byteLength)throw 0;const full=new Blob([buf],{type:'image/jpeg'});const im=await loadImage(full);const thumb=await toBlob(draw(im,320),.8);Object.assign(p,{w:o.w,h:o.h,hash:o.hash});await saveImages(p,full,thumb,null);await savePhoto(p);toast('Original restored');paint()}catch(e){toast('Original could not be read on this device')}};
+   L.querySelector('[data-v="tags"]').onclick=()=>tagSheet('Tags',p.tags,async d=>{p.tags=d;await savePhoto(p);recount();paint()},null);
+   L.querySelector('[data-v="share"]').onclick=async()=>{try{const r=await getFull(p.id);const file=new File([r.full],(p.name||'photo').replace(/\.\w+$/,'')+'.jpg',{type:'image/jpeg'});if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file]});return}const a=document.createElement('a');a.href=URL.createObjectURL(file);a.download=file.name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},2000)}catch(e){if(e.name!=='AbortError')toast('Could not share')}};
    L.querySelector('[data-v="cover"]').onclick=()=>{
-     const opts=[];for(const t of p.tags){const it=itemById(t.item);if(!it)continue;const cn=catById(it.cat).name.toLowerCase().replace(/s$/,'');if(!opts.some(o=>o.k==='i'+it.id))opts.push({k:'i'+it.id,l:it.name+' ('+cn+' cover)',ratio:1,fn:async crop=>{it.cover=p.id;it.coverCrop=crop;await saveItem(it)}});const sb=subOf(it,t.sub);if(sb)opts.push({k:'s'+sb.id,l:it.name+' · '+sb.name,ratio:4/3,fn:async crop=>{sb.cover=p.id;sb.coverCrop=crop;await saveItem(it)}})}
+     const opts=[];const quick=new Set(quickCats().map(c=>c.id));
+     for(const t of p.tags){const it=itemById(t.item);if(!it||quick.has(it.cat))continue;const cn=singular(catById(it.cat).name.toLowerCase());if(!opts.some(o=>o.k==='i'+it.id))opts.push({k:'i'+it.id,l:it.name+' ('+cn+' cover)',ratio:1,fn:async crop=>{it.cover=p.id;it.coverCrop=crop;await saveItem(it)}});const sb=subOf(it,t.sub);if(sb)opts.push({k:'s'+sb.id,l:it.name+' · '+sb.name,ratio:4/3,fn:async crop=>{sb.cover=p.id;sb.coverCrop=crop;await saveItem(it)}});
+       for(const q of p.tags.map(x=>itemById(x.item)).filter(x=>x&&quick.has(x.cat)))opts.push({k:'q'+it.id+q.id,l:it.name+' · '+q.name+' folder',ratio:4/3,fn:async crop=>{it.typeCovers=it.typeCovers||{};it.typeCovers[q.id]={id:p.id,crop};await saveItem(it)}})}
      sheet('Set as cover for',`<div class="list">${opts.map((o,i)=>`<button class="li" data-o="${i}"><div class="t">${esc(o.l)}</div>${I.chev}</button>`).join('')}</div>`,el=>el.querySelectorAll('[data-o]').forEach(b=>b.onclick=()=>{const o=opts[+b.dataset.o];closeSheet();pickCover(p,o.ratio,null,async crop=>{await o.fn(crop);toast('Cover updated');paint()},paint)}));
    };
-   L.querySelector('[data-v="del"]').onclick=async()=>{if(!confirm('Delete this photo from the app?'))return;const i=list.indexOf(id);await deletePhotos([p.id]);list=list.filter(x=>x!==p.id);if(!list.length){closeSheet();render();return}id=list[Math.min(i,list.length-1)];paint()};
+   L.querySelector('[data-v="del"]').onclick=async()=>{if(!await ask('Delete this photo from the app?',{ok:'Delete',danger:true}))return;const i=list.indexOf(id);const kept=await deletePhotos([p.id],true);list=list.filter(x=>x!==p.id);toast('Photo deleted',async()=>{await restorePhotos(kept);render()});if(!list.length){closeSheet();render();return}id=list[Math.min(i,list.length-1)];paint()};
   };
   paint();
 }
-
 function pickCover(p,ratio,crop,onPick,onCancel){openEditor(p,onCancel||(()=>render()),{pick:{ratio,crop,onPick}})}
+
 /* ---------- export / import ---------- */
-function dataJSON(){return {version:1,exported:new Date().toISOString(),cats:S.cats,items:S.items,photos:S.photos.map(p=>({id:p.id,name:p.name,added:p.added,imported:p.imported,w:p.w,h:p.h,hash:p.hash,fav:p.fav,tags:p.tags,file:'photos/'+p.id+'.jpg',orig:p.orig?{w:p.orig.w,h:p.orig.h,hash:p.orig.hash,file:'originals/'+p.id+'.jpg'}:null}))}}
-async function buildZip(photos,withData){
-  const z=new JSZip();if(withData)z.file('data.json',JSON.stringify(dataJSON(),null,1));
-  const f=z.folder('photos');for(const p of photos)f.file(p.id+'.jpg',p.full);
-  if(withData){const o=z.folder('originals');for(const p of photos)if(p.orig&&(p.orig.buf||p.orig.full))o.file(p.id+'.jpg',p.orig.buf||p.orig.full)}
-  return z.generateAsync({type:'blob',compression:'STORE'});
+const EXPORT_PART=400;
+function dataJSON(part,of,ids){return {version:2,exported:new Date().toISOString(),part,of,cats:S.cats,items:S.items,recent:S.recent,photos:S.photos.map(p=>({...meta(p),file:'photos/'+p.id+'.jpg',thumb:'thumbs/'+p.id+'.jpg',orig:p.hasOrig?'originals/'+p.id+'.jpg':null,inPart:ids?ids.has(p.id):true}))}}
+async function buildZip(photos,withData,part,of){
+  const z=new JSZip();const ids=new Set(photos.map(p=>p.id));
+  if(withData)z.file('data.json',JSON.stringify(dataJSON(part,of,ids)));
+  const f=z.folder('photos'),t=z.folder('thumbs'),o=z.folder('originals');let n=0;
+  for(const p of photos){const r=await DB.get('blobs',p.id);const th=await DB.get('thumbs',p.id);if(!r)continue;f.file(p.id+'.jpg',r.full);if(withData&&th)t.file(p.id+'.jpg',th.thumb);if(withData&&r.orig&&(r.orig.buf||r.orig.full))o.file(p.id+'.jpg',r.orig.buf||r.orig.full);if(++n%25===0){showProgress(n,photos.length,'Packing');await sleep(0)}}
+  const blob=await z.generateAsync({type:'blob',compression:'STORE'});hideProgress();return blob;
 }
 async function shareOrDownload(blob,name){
   const file=new File([blob],name,{type:'application/zip'});
-  if(navigator.canShare&&navigator.canShare({files:[file]})){try{await navigator.share({files:[file],title:name});return}catch(e){if(e.name==='AbortError')return}}
-  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},2000);
+  if(navigator.canShare&&navigator.canShare({files:[file]})){try{await navigator.share({files:[file],title:name});return true}catch(e){if(e.name==='AbortError')return false}}
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},4000);return true;
+}
+function exportSheet(){
+  const ps=S.photos.slice().sort((a,b)=>a.added-b.added);const of=Math.max(1,Math.ceil(ps.length/EXPORT_PART));const day=new Date().toISOString().slice(0,10);
+  sheet('Export backup',`<div class="note" style="padding-top:0;padding-bottom:12px">${ps.length} photos in ${of} part${of===1?'':'s'} of up to ${EXPORT_PART}. Every part carries all tags, so parts can be imported in any order. Export one at a time; each opens the share sheet.</div><div class="list">${Array.from({length:of},(_,i)=>`<button class="li" data-part="${i}"><div><div class="t">Part ${i+1} of ${of}</div><div class="s">${Math.min(EXPORT_PART,ps.length-i*EXPORT_PART)} photos</div></div>${I.chev}</button>`).join('')}</div>`,el=>{
+    el.querySelectorAll('[data-part]').forEach(b=>b.onclick=async()=>{const i=+b.dataset.part;closeSheet();showProgress(0,0,'Packing');try{const blob=await buildZip(ps.slice(i*EXPORT_PART,(i+1)*EXPORT_PART),true,i+1,of);await shareOrDownload(blob,`photo-sorter-${day}-part${i+1}of${of}.zip`)}catch(e){hideProgress();toast('Export failed: '+(e.message||e))}});
+  });
 }
 async function importZip(file){
-  showProgress(0,1);
+  showProgress(0,0,'Reading zip');
   try{
     const z=await JSZip.loadAsync(file);const dj=z.file('data.json');
-    if(!dj){hideProgress();toast('Not a Photo Sorter backup');return}
-    const d=JSON.parse(await dj.async('string'));let n=0,t=d.photos.length;
-    for(const c of d.cats)if(!catById(c.id)){await saveCat(c);S.cats.push(c)}
-    for(const i of d.items){const ex=itemById(i.id);if(!ex){await saveItem(i);S.items.push(i)}}
-    for(const q of d.photos){showProgress(++n,t);if(photoById(q.id))continue;const zf=z.file(q.file);if(!zf)continue;const full=await zf.async('blob');const im=await loadImage(full);const thumb=await toBlob(draw(im,320),.8);const p={...q,full:new Blob([full],{type:'image/jpeg'}),thumb};delete p.file;if(q.orig){const of=z.file(q.orig.file);p.orig=of?{w:q.orig.w,h:q.orig.h,hash:q.orig.hash,buf:await of.async('arraybuffer')}:null;if(!p.orig)delete p.orig}await saveBlobs(p);await savePhoto(p);S.photos.push(p)}
-    S.photos.sort(byNewest);hideProgress();toast('Backup imported');render();
+    if(!dj){hideProgress();await importImageZip(z);return}
+    const d=JSON.parse(await dj.async('string'));let n=0,added=0;
+    for(const c of d.cats||[])if(!catById(c.id)){await saveCat(c);S.cats.push(c)}
+    for(const i of d.items||[]){if(!itemById(i.id)){await saveItem(i);S.items.push(i)}}
+    const list=d.photos.filter(q=>q.inPart!==false);const t=list.length;let quota=false;
+    for(const q of list){
+      showProgress(++n,t,'Importing');if(photoById(q.id))continue;const zf=z.file(q.file);if(!zf)continue;
+      const full=new Blob([await zf.async('arraybuffer')],{type:'image/jpeg'});
+      let thumb=null;const tf=q.thumb&&z.file(q.thumb);if(tf)thumb=new Blob([await tf.async('arraybuffer')],{type:'image/jpeg'});
+      if(!thumb){const im=await loadImage(full);thumb=await toBlob(draw(im,320),.8)}
+      let orig=null;if(q.orig&&typeof q.orig==='string'){const of=z.file(q.orig);if(of)orig={w:q.w,h:q.h,hash:q.hash,buf:await of.async('arraybuffer')}}
+      else if(q.orig&&q.orig.file){const of=z.file(q.orig.file);if(of)orig={w:q.orig.w,h:q.orig.h,hash:q.orig.hash,buf:await of.async('arraybuffer')}}
+      const p={...q};delete p.file;delete p.thumb;delete p.orig;delete p.inPart;delete p.full;
+      try{await saveImages(p,full,thumb,orig);await savePhoto(p)}catch(e){if(isQuota(e)){quota=true;break}throw e}
+      S.photos.push(p);photoMap.set(p.id,p);added++;if(n%3===0)await sleep(0);
+    }
+    S.photos.sort(byNewest);indexPhotos();recount();hideProgress();
+    if(quota)await ask(`Storage is full after ${added} photos. Free space and import this part again — photos already here are skipped.`,{ok:'OK',single:true});else toast(`Imported ${added} photo${added===1?'':'s'}`);render();
   }catch(e){hideProgress();toast('Could not read that file')}
 }
-
+</script>
+<script>
 /* ---------- actions ---------- */
 const actions={
   add:()=>$('#picker').click(),
+  search:()=>{S.history.push({view:S.view,catView:S.catView,itemId:S.itemId,subId:S.subId,typeId:S.typeId});go('search');const q=$('#q');if(q)setTimeout(()=>q.focus(),50)},
   galFilter:b=>{S.galFilter=b.dataset.k;render()},
-  tile:b=>{if(S.select){const id=b.dataset.id;S.select.has(id)?S.select.delete(id):S.select.add(id);b.classList.toggle('sel',S.select.has(id));const chk=b.querySelector('.chk');if(chk)chk.innerHTML=S.select.has(id)?I.check:'';updateSelBar()}else openViewer(b.dataset.id,[...$('#app').querySelectorAll('.tile')].map(t=>t.dataset.id))},
-  selStart:()=>{S.select=new Set();render()},selCancel:()=>{S.select=null;render()},
-  selAll:()=>{const ids=[...$('#app').querySelectorAll('.tile')].map(t=>t.dataset.id);S.select=S.select.size===ids.length?new Set():new Set(ids);render()},
-  selGroup:b=>{const ids=b.dataset.ids.split(',');const allIn=ids.every(i=>S.select.has(i));ids.forEach(i=>allIn?S.select.delete(i):S.select.add(i));render()},
+  galType:b=>{S.galType=S.galType===b.dataset.k?null:b.dataset.k;render()},
   galGroup:()=>{S.galGroup=S.galGroup==='day'?'month':'day';render()},
-  selUntag:async()=>{const it=itemById(S.itemId);if(!it)return;for(const id of S.select){const p=photoById(id);const b=p.tags.length;p.tags=p.tags.filter(t=>t.item!==it.id);if(b!==p.tags.length)await savePhoto(p)}toast('Removed from '+it.name);S.select=null;render()},
-  selTag:()=>tagSheet(`Tag ${S.select.size} photos`,[],async d=>{for(const id of S.select){const p=photoById(id);for(const t of d)addTag(p.tags,t.item,t.sub);await savePhoto(p)}toast('Tags added');S.select=null;render()}),
-  selFav:async()=>{const ps=[...S.select].map(photoById);const all=ps.every(p=>p.fav);for(const p of ps){p.fav=!all;await savePhoto(p)}toast(all?'Removed from favorites':'Added to favorites');S.select=null;render()},
-  selExport:async()=>{toast('Preparing zip…');const blob=await buildZip([...S.select].map(photoById),false);shareOrDownload(blob,'photos.zip')},
-  selDelete:async()=>{if(!confirm(`Delete ${S.select.size} photos from the app?`))return;await deletePhotos([...S.select]);S.select=null;render()},
+  tile:b=>{if(S.select){const id=b.dataset.id;S.select.has(id)?S.select.delete(id):S.select.add(id);b.classList.toggle('sel',S.select.has(id));const chk=b.querySelector('.chk');if(chk)chk.innerHTML=S.select.has(id)?I.check:'';updateSelBar()}else openViewer(b.dataset.id,visibleIds())},
+  selStart:()=>{S.select=new Set();render()},selCancel:()=>{S.select=null;render()},
+  selAll:()=>{const ids=visibleIds();S.select=S.select.size===ids.length?new Set():new Set(ids);render()},
+  selGroup:b=>{const ids=b.dataset.ids.split(',');const allIn=ids.every(i=>S.select.has(i));ids.forEach(i=>allIn?S.select.delete(i):S.select.add(i));render()},
+  selTag:()=>tagSheet(`Tag ${S.select.size} photos`,[],async d=>{const before=[];for(const id of S.select){const p=photoById(id);before.push([p,p.tags.map(t=>({...t}))]);for(const t of d)addTag(p.tags,t.item,t.sub);await savePhoto(p)}recount();S.select=null;render();toast('Tags added',async()=>{for(const [p,tags] of before){p.tags=tags;await DB.put('photos',meta(p))}recount();render()})}),
+  selUntag:async()=>{const it=itemById(S.itemId);if(!it)return;const before=[];for(const id of S.select){const p=photoById(id);before.push([p,p.tags.map(t=>({...t}))]);p.tags=p.tags.filter(t=>t.item!==it.id);await DB.put('photos',meta(p))}recount();S.select=null;render();toast('Removed from '+it.name,async()=>{for(const [p,tags] of before){p.tags=tags;await DB.put('photos',meta(p))}recount();render()})},
+  selFav:async()=>{const ps=[...S.select].map(photoById);const all=ps.every(p=>p.fav);for(const p of ps){p.fav=!all;await savePhoto(p)}S.select=null;render();toast(all?'Removed from favorites':'Added to favorites',async()=>{for(const p of ps){p.fav=all;await savePhoto(p)}render()})},
+  selExport:async()=>{const ps=[...S.select].map(photoById);showProgress(0,ps.length,'Packing');try{const blob=await buildZip(ps,false);await shareOrDownload(blob,'photos.zip')}catch(e){hideProgress();toast('Export failed')}},
+  selDelete:async()=>{const n=S.select.size;if(!await ask(`Delete ${n} photo${n===1?'':'s'} from the app?`,{ok:'Delete',danger:true}))return;const kept=await deletePhotos([...S.select],true);S.select=null;render();toast(`Deleted ${n}`,async()=>{await restorePhotos(kept);render()})},
   catSort:b=>{S.catSort[S.catView]=b.dataset.k;render()},
+  collapse:b=>{const k=S.catView+'|'+b.dataset.k;S.collapsed[k]=!S.collapsed[k];render()},
+  reorder:()=>reorderSheet(catById(S.catView)),
   newItem:()=>newItemSheet(S.catView),
   openItem:b=>{S.history.push({view:S.view,catView:S.catView,itemId:S.itemId,subId:S.subId,typeId:S.typeId});go('item',{itemId:b.dataset.id,subId:null,typeId:null})},
-  itemUp:b=>moveItem(b.dataset.id,-1),itemDown:b=>moveItem(b.dataset.id,1),
   back:()=>{const h=S.history.pop();S.dupePairs=null;if(h)go(h.view,{catView:h.catView,itemId:h.itemId,subId:h.subId||null,typeId:h.typeId||null});else go('gallery')},
-  editItem:()=>{const it=itemById(S.itemId);const cat=catById(it.cat);itemForm(cat,it)},
+  editItem:()=>{const it=itemById(S.itemId);itemForm(catById(it.cat),it)},
   newSub:()=>subForm(itemById(S.itemId)),
-  pickSub:b=>{S.subId=b.dataset.id||null;render()},
+  pickSub:b=>{S.subId=S.subId===b.dataset.id?null:(b.dataset.id||null);render()},
   pickType:b=>{S.typeId=b.dataset.id||null;render()},
-  adjustCover:()=>{const it=itemById(S.itemId);const p=photoById(it.cover);if(!p)return;pickCover(p,1,it.coverCrop,async crop=>{it.coverCrop=crop;await saveItem(it);render()})},
-  adjustSubCover:b=>{const it=itemById(S.itemId);const sb=subOf(it,b.dataset.id);const p=photoById(sb.cover);if(!p)return;pickCover(p,4/3,sb.coverCrop,async crop=>{sb.coverCrop=crop;await saveItem(it);render()})},
   clearFilters:()=>{S.subId=null;S.typeId=null;render()},
   editSub:b=>subForm(itemById(S.itemId),subOf(itemById(S.itemId),b.dataset.id)),
+  adjustCover:()=>{const it=itemById(S.itemId);const p=photoById(it.cover);if(!p){toast('Open a photo of '+it.name+' and tap Set as cover');return}pickCover(p,1,it.coverCrop,async crop=>{it.coverCrop=crop;await saveItem(it);render()})},
+  adjustSubCover:b=>{const it=itemById(S.itemId);const sb=subOf(it,b.dataset.id);const p=photoById(sb.cover);if(!p){toast('Open a photo tagged '+sb.name+' and tap Set as cover');return}pickCover(p,4/3,sb.coverCrop,async crop=>{sb.coverCrop=crop;await saveItem(it);render()})},
+  sortItemQueue:b=>startSort(b.dataset.k),
   sortFilter:b=>startSort(b.dataset.k),
+  sortFilterSheet:()=>sortFilterSheet(),
   closeSort:()=>go('gallery'),
   sortCat:b=>{S.sortCat=b.dataset.k;S.sortItem=null;render()},
   sortItem:b=>{const i=itemById(b.dataset.id);if(S.sortItem===i.id&&i.subs.length)S.sortItem=null;else{S.sortItem=i.id;if(!i.subs.length)toggleDraft(i.id,null)}render()},
@@ -666,14 +922,14 @@ const actions={
   draftRm:(b,e)=>{const t=S.draft[+b.dataset.i];if(e&&e.target.closest('.x')){S.draft.splice(+b.dataset.i,1);render();return}const it=itemById(t.item);if(it&&!catById(it.cat).quick){S.sortCat=it.cat;S.sortItem=it.id;render()}},
   sortQuick:b=>{toggleDraft(b.dataset.id,null);render()},
   sortQuickNew:b=>newItemSheet(b.dataset.cat,i=>{toggleDraft(i.id,null);render()}),
-  galType:b=>{S.galType=S.galType===b.dataset.k?null:b.dataset.k;render()},
   newItemSort:()=>newItemSheet(S.sortCat,i=>{S.sortItem=i.subs.length?i.id:null;if(!i.subs.length)toggleDraft(i.id,null);render()}),
   newSubSort:()=>subForm(itemById(S.sortItem),null,s=>{toggleDraft(S.sortItem,s.id);render()}),
   openCur:()=>openViewer(S.sortQueue[S.sortIdx]),
-  skip:()=>{S.sortIdx++;if(S.sortIdx>=S.sortQueue.length){toast('End of queue');S.sortIdx=S.sortQueue.length}loadDraft();render()},
-  saveNext:async()=>{const p=photoById(S.sortQueue[S.sortIdx]);if(p){p.tags=S.draft.map(t=>({...t}));await savePhoto(p)}S.sortIdx++;loadDraft();render()},
+  prev:()=>{if(S.sortIdx>0){S.sortIdx--;loadDraft();render()}},
+  skip:()=>{S.sortIdx=Math.min(S.sortIdx+1,S.sortQueue.length);loadDraft();render()},
+  saveNext:async()=>{const p=photoById(S.sortQueue[S.sortIdx]);if(p){const ch=JSON.stringify(S.draft)!==JSON.stringify(p.tags);if(ch){p.tags=S.draft.map(t=>({...t}));await savePhoto(p);S.draft.forEach(t=>touchRecent(t.item));recount()}}S.sortIdx=Math.min(S.sortIdx+1,S.sortQueue.length);loadDraft();render()},
   favFilter:b=>{S.favFilter=b.dataset.k;render()},
-  shuffle:b=>{S.history.push({view:S.view,catView:S.catView});S.shufFilter=b.dataset.k;pickRandom();go('shuffle')},
+  shuffle:b=>{S.history.push({view:S.view,catView:S.catView,itemId:S.itemId,subId:S.subId,typeId:S.typeId});S.shufFilter=b.dataset.k;pickRandom();go('shuffle')},
   shufFilter:b=>{S.shufFilter=b.dataset.k;pickRandom();render()},
   shufNext:()=>{pickRandom();render()},
   shufFav:async()=>{const p=photoById(S.shufId);p.fav=!p.fav;await savePhoto(p);render()},
@@ -683,6 +939,7 @@ const actions={
   catToggle:async b=>{const c=catById(b.dataset.id);if(c.enabled&&enabledCats().length===1){toast('Keep at least one category on');return}c.enabled=!c.enabled;await saveCat(c);render()},
   catUp:async b=>{const cs=S.cats.slice().sort((a,b)=>a.order-b.order);const i=cs.findIndex(c=>c.id===b.dataset.id);if(i>0){[cs[i-1].order,cs[i].order]=[cs[i].order,cs[i-1].order];await DB.putMany('cats',cs);render()}},
   dupes:()=>{S.history.push({view:'more'});S.dupePairs=null;go('dupes')},
+  dupeOpen:b=>openViewer(b.dataset.id),
   manage:()=>{S.history.push({view:'more'});go('manage')},
   manageCat:b=>{S.manageCat=b.dataset.k;render()},
   manageEdit:b=>{const it=itemById(b.dataset.id);itemForm(catById(it.cat),it)},
@@ -693,70 +950,59 @@ const actions={
   dupeSwap:b=>{const x=S.dupePairs[+b.dataset.i];[x.keep,x.rm]=[x.rm,x.keep];render()},
   dupeNot:b=>{const x=S.dupePairs[+b.dataset.i];(S.notDupes=S.notDupes||new Set()).add(x.keep.id+'|'+x.rm.id).add(x.rm.id+'|'+x.keep.id);S.dupePairs.splice(+b.dataset.i,1);render()},
   dupeRemove:async b=>{const x=S.dupePairs[+b.dataset.i];await mergeRemove(x.keep,x.rm);S.dupePairs.splice(+b.dataset.i,1);render()},
-  dupeAll:async()=>{if(!confirm(`Remove ${S.dupePairs.length} duplicate photos?`))return;for(const x of S.dupePairs)await mergeRemove(x.keep,x.rm);S.dupePairs=[];render()},
-  exportAll:async()=>{if(!S.photos.length){toast('Nothing to export');return}toast('Preparing backup…');const blob=await buildZip(S.photos,true);shareOrDownload(blob,'photo-sorter-backup-'+new Date().toISOString().slice(0,10)+'.zip')},
+  dupeAll:async()=>{if(!await ask(`Remove ${S.dupePairs.length} duplicate photos? Tags move to the kept copies.`,{ok:'Remove all',danger:true}))return;showProgress(0,S.dupePairs.length,'Removing');let n=0;for(const x of S.dupePairs){await mergeRemove(x.keep,x.rm);if(++n%10===0){showProgress(n,S.dupePairs.length,'Removing');await sleep(0)}}hideProgress();S.dupePairs=[];render()},
+  exportAll:()=>{if(!S.photos.length){toast('Nothing to export');return}exportSheet()},
   importZip:()=>$('#zipPicker').click(),
-  wipe:async()=>{if(!confirm('Delete every photo, character and tag in this app? Export a backup first if you want to keep them.'))return;if(!confirm('Really delete everything?'))return;await DB.clear('photos');await DB.clear('blobs');await DB.clear('items');await DB.clear('cats');S.photos=[];S.items=[];S.cats=[];await seed();go('gallery')},
+  wipe:async()=>{if(!await ask('Delete every photo, character and tag in this app? Export a backup first if you want to keep them.',{ok:'Delete everything',danger:true}))return;if(!await ask('Really delete everything? This cannot be undone.',{ok:'Yes, delete',danger:true}))return;for(const s of ['photos','blobs','thumbs','items','cats','meta'])await DB.clear(s);S.photos=[];S.items=[];S.cats=[];S.recent=[];S.lastBatch=null;indexPhotos();recount();for(const M of [TC,FC]){for(const [,e] of M)URL.revokeObjectURL(e.url);M.clear()}await seed();await seedQuick();go('gallery')},
 };
 function newItemSheet(catId,after){const cat=catById(catId);itemForm(cat,null,after)}
 function itemForm(cat,it,after,onCancel){
-  const g=groupCatOf(cat);const one=cat.name.toLowerCase().replace(/s$/,'');
-  const fields=[{name:'name',label:'Name',value:it?it.name:'',required:true,ph:cat.name.replace(/s$/,'')+' name'}];
-  if(g){const gone=g.name.replace(/s$/,'');fields.push({name:'groupId',label:gone,type:'select',value:it?(it.groupId||''):'',options:[{v:'',l:'None'},...sortedItems(g).map(x=>({v:x.id,l:x.name})),{v:'__new',l:'+ New '+gone.toLowerCase()+'…'}]});fields.push({name:'groupNew',label:'New '+gone.toLowerCase()+' name',value:'',ph:gone+' name',showIf:'groupId=__new'})}
+  const g=groupCatOf(cat);const one=singular(cat.name.toLowerCase());
+  const fields=[{name:'name',label:'Name',value:it?it.name:'',required:true,ph:singular(cat.name)+' name'}];
+  if(g){const gone=singular(g.name);fields.push({name:'groupId',label:gone,type:'select',value:it?(it.groupId||''):'',options:[{v:'',l:'None'},...sortedItems(g).map(x=>({v:x.id,l:x.name})),{v:'__new',l:'+ New '+gone.toLowerCase()+'…'}]});fields.push({name:'groupNew',label:'New '+gone.toLowerCase()+' name',value:'',ph:gone+' name',showIf:'groupId=__new'})}
   formSheet(it?'Edit '+one:'New '+one,fields,async v=>{
     let groupId=v.groupId||null;
-    if(g&&groupId==='__new'){const nm=(v.groupNew||'').trim();if(!nm){toast('Enter a '+g.name.toLowerCase().replace(/s$/,'')+' name');return}
+    if(g&&groupId==='__new'){const nm=(v.groupNew||'').trim();if(!nm){toast('Enter a '+singular(g.name.toLowerCase())+' name');return}
       let gi=itemsOf(g.id).find(x=>x.name.trim().toLowerCase()===nm.toLowerCase());if(!gi){gi={id:uid(),cat:g.id,name:nm,cover:null,subs:[],order:itemsOf(g.id).length,added:Date.now()};await saveItem(gi);S.items.push(gi)}groupId=gi.id}
     if(it){it.name=v.name;it.groupId=groupId;delete it.group;await saveItem(it);
-      // keep implied tags in sync on photos already tagged with this item
-      if(groupId)for(const p of S.photos)if(p.tags.some(t=>t.item===it.id)&&!p.tags.some(t=>t.item===groupId))await savePhoto(p)}
+      if(groupId)for(const p of S.photos)if(p.tags.some(t=>t.item===it.id)&&!p.tags.some(t=>t.item===groupId))await savePhoto(p);recount()}
     else{const n={id:uid(),cat:cat.id,name:v.name,groupId,cover:null,subs:[],order:itemsOf(cat.id).length,added:Date.now()};await saveItem(n);S.items.push(n);it=n}
     render();after&&after(it);
   },it?()=>deleteItem(it):null,onCancel);
 }
 async function deleteItem(it){
-  const cat=catById(it.cat);const children=S.items.filter(x=>x.groupId===it.id);
-  const cn=children.length?` This will also delete ${children.length} ${children.length===1?catById(children[0].cat).name.toLowerCase().replace(/s$/,''):catById(children[0].cat).name.toLowerCase()} (${children.map(c=>c.name).join(', ')}).`:'';
-  if(!confirm(`Delete ${it.name}?${cn} Photos stay, but lose these tags.`))return;
+  const children=S.items.filter(x=>x.groupId===it.id);
+  const cn=children.length?`\nThis also deletes ${children.length} ${children.length===1?singular(catById(children[0].cat).name.toLowerCase()):catById(children[0].cat).name.toLowerCase()}: ${children.map(c=>c.name).join(', ')}.`:'';
+  if(!await ask(`Delete ${it.name}?${cn}\nPhotos stay, but lose these tags.`,{ok:'Delete',danger:true}))return;
   const ids=new Set([it.id,...children.map(c=>c.id)]);
-  for(const p of S.photos){const b=p.tags.length;p.tags=p.tags.filter(t=>!ids.has(t.item));if(b!==p.tags.length)await DB.put('photos',p)}
-  for(const id of ids)await DB.del('items',id);S.items=S.items.filter(i=>!ids.has(i.id));
+  for(const p of S.photos){const b=p.tags.length;p.tags=p.tags.filter(t=>!ids.has(t.item));if(b!==p.tags.length)await DB.put('photos',meta(p))}
+  for(const id of ids)await DB.del('items',id);S.items=S.items.filter(i=>!ids.has(i.id));recount();
   if(S.view==='item'&&ids.has(S.itemId))actions.back();else render();
 }
 function subForm(it,sub,after,onCancel){
-  const cat=catById(it.cat);const one=cat.subLabel.replace(/s$/,'');
+  const cat=catById(it.cat);const one=singular(cat.subLabel);
   formSheet(sub?'Edit '+one.toLowerCase():'New '+one.toLowerCase()+' for '+it.name,[{name:'name',label:'Name',value:sub?sub.name:'',required:true,ph:one+' name'}],async v=>{
     if(sub)sub.name=v.name;else{sub={id:uid(),name:v.name,cover:null};it.subs.push(sub)}
     await saveItem(it);render();after&&after(sub);
-  },sub?async()=>{if(!confirm(`Delete ${sub.name}? Photos keep the ${it.name} tag.`))return;for(const p of S.photos){let ch=false;p.tags.forEach(t=>{if(t.item===it.id&&t.sub===sub.id){t.sub=null;ch=true}});if(ch)await savePhoto(p)}it.subs=it.subs.filter(s=>s.id!==sub.id);await saveItem(it);S.subId=null;render()}:null,onCancel);
+  },sub?async()=>{if(!await ask(`Delete ${sub.name}? Photos keep the ${it.name} tag.`,{ok:'Delete',danger:true}))return;for(const p of S.photos){let ch=false;p.tags.forEach(t=>{if(t.item===it.id&&t.sub===sub.id){t.sub=null;ch=true}});if(ch)await savePhoto(p)}it.subs=it.subs.filter(s=>s.id!==sub.id);await saveItem(it);S.subId=null;recount();render()}:null,onCancel);
 }
 function catForm(c){
-  formSheet(c?'Edit category':'New category',[{name:'name',label:'Name',value:c?c.name:'',required:true,ph:'Characters, Shows, Artists…'},{name:'subLabel',label:'Sub-bucket name',value:c?c.subLabel:'',ph:'Outfits, Seasons, Styles…',required:true},{name:'groupCat',label:'Each item belongs to a… (optional)',type:'select',value:c?(c.groupCat||''):'',options:[{v:'',l:'Nothing'},...S.cats.filter(x=>!x.quick&&(!c||x.id!==c.id)).map(x=>({v:x.id,l:x.name.replace(/s$/,'')+' (from '+x.name+')'}))]},{name:'quick',label:'Show in Sort as',type:'select',value:c&&c.quick?'1':'0',options:[{v:'0',l:'Scrollable row with sub-buckets (characters, shows)'},{v:'1',l:'Quick toggles, always visible (type, rating, style)'}]}],async v=>{
-    const gl=v.groupCat?catById(v.groupCat).name.replace(/s$/,''):'';
+  formSheet(c?'Edit category':'New category',[{name:'name',label:'Name',value:c?c.name:'',required:true,ph:'Characters, Shows, Artists…'},{name:'subLabel',label:'Sub-bucket name',value:c?c.subLabel:'',ph:'Outfits, Seasons, Styles…',required:true},{name:'groupCat',label:'Each item belongs to a… (optional)',type:'select',value:c?(c.groupCat||''):'',options:[{v:'',l:'Nothing'},...S.cats.filter(x=>!x.quick&&(!c||x.id!==c.id)).map(x=>({v:x.id,l:singular(x.name)+' (from '+x.name+')'}))]},{name:'quick',label:'Show in Sort as',type:'select',value:c&&c.quick?'1':'0',options:[{v:'0',l:'Scrollable row with sub-buckets (characters, shows)'},{v:'1',l:'Quick toggles, always visible (type, rating, style)'}]}],async v=>{
+    const gl=v.groupCat?singular(catById(v.groupCat).name):'';
     if(c){Object.assign(c,{name:v.name,subLabel:v.subLabel,groupCat:v.groupCat||null,groupLabel:gl,quick:v.quick==='1'});await saveCat(c)}
     else{const n={id:uid(),name:v.name,subLabel:v.subLabel,groupCat:v.groupCat||null,groupLabel:gl,enabled:true,order:S.cats.length,quick:v.quick==='1'};await saveCat(n);S.cats.push(n)}
     render();
-  },c?async()=>{if(!confirm(`Delete ${c.name} and all its items? Photos stay, but lose those tags.`))return;const ids=new Set(itemsOf(c.id).map(i=>i.id));for(const p of S.photos){const b=p.tags.length;p.tags=p.tags.filter(t=>!ids.has(t.item));if(b!==p.tags.length)await savePhoto(p)}for(const id of ids)await DB.del('items',id);S.items=S.items.filter(i=>!ids.has(i.id));await DB.del('cats',c.id);S.cats=S.cats.filter(x=>x.id!==c.id);await seed();render()}:null);
+  },c?async()=>{if(!await ask(`Delete ${c.name} and all its items? Photos stay, but lose those tags.`,{ok:'Delete',danger:true}))return;const ids=new Set(itemsOf(c.id).map(i=>i.id));for(const p of S.photos){const b=p.tags.length;p.tags=p.tags.filter(t=>!ids.has(t.item));if(b!==p.tags.length)await DB.put('photos',meta(p))}for(const id of ids)await DB.del('items',id);S.items=S.items.filter(i=>!ids.has(i.id));await DB.del('cats',c.id);S.cats=S.cats.filter(x=>x.id!==c.id);await seed();recount();render()}:null);
 }
-async function moveItem(id,dir){const it=itemById(id);const its=sortedItems(catById(it.cat));const i=its.indexOf(it),j=i+dir;if(j<0||j>=its.length)return;its.forEach((x,k)=>x.order=k);[its[i].order,its[j].order]=[its[j].order,its[i].order];await DB.putMany('items',its);render()}
 
-/* ---------- self-healing images ---------- */
-// Safari can invalidate Blobs read from IndexedDB once their transaction closes; on a failed
-// load, re-read the photo, rebuild the blob from bytes, and swap the URL in.
-document.addEventListener('error',async e=>{
-  const img=e.target;if(!(img instanceof HTMLImageElement)||!img.dataset.p)return;
-  const id=img.dataset.p,k=img.dataset.k,tries=+(img.dataset.retry||0);if(tries>=2)return;img.dataset.retry=tries+1;
-  try{
-    const rec=await DB.get('blobs',id);if(!rec)return;const key=k==='f'?'full':'thumb';
-    const b=await fresh(rec[key]);const p=photoById(id);if(p)p[key]=b;
-    const uk=k+id;if(urls[uk]){URL.revokeObjectURL(urls[uk]);delete urls[uk]}urls[uk]=URL.createObjectURL(b);
-    img.src=urls[uk];
-  }catch(err){}
-},true);
-
-/* ---------- long-press to select ---------- */
+/* ---------- long-press: select tiles, adjust outfit covers ---------- */
 let lp;
-document.addEventListener('pointerdown',e=>{const t=e.target.closest('.tile');if(!t||S.select||!['gallery','item','favorites'].includes(S.view))return;lp=setTimeout(()=>{S.select=new Set([t.dataset.id]);render();navigator.vibrate&&navigator.vibrate(10)},450)});
+document.addEventListener('pointerdown',e=>{
+  const t=e.target.closest('.tile');
+  if(t&&!S.select&&['gallery','item','favorites','search'].includes(S.view)){lp=setTimeout(()=>{S.select=new Set([t.dataset.id]);render();navigator.vibrate&&navigator.vibrate(10)},450);return}
+  const sc=e.target.closest('[data-lp="sub"]');
+  if(sc&&S.view==='item'){lp=setTimeout(()=>{const it=itemById(S.itemId);const sb=subOf(it,sc.dataset.id);const p=sb&&photoById(sb.cover);if(!p){toast('This outfit has no cover yet — open a photo and tap Set as cover');return}navigator.vibrate&&navigator.vibrate(10);pickCover(p,4/3,sb.coverCrop,async crop=>{sb.coverCrop=crop;await saveItem(it);render()})},450)}
+});
 ['pointerup','pointercancel','pointermove'].forEach(ev=>document.addEventListener(ev,()=>clearTimeout(lp)));
 
 /* ---------- share-target inbox ---------- */
@@ -765,7 +1011,7 @@ async function drainShareInbox(){
   try{const c=await caches.open('share-inbox');const keys=await c.keys();if(!keys.length)return;const files=[];for(const k of keys){const r=await c.match(k);const b=await r.blob();files.push(new File([b],k.url.split('/').pop()||'shared.jpg',{type:b.type||'image/jpeg'}));await c.delete(k)}if(files.length)await importFiles(files)}catch(e){}
 }
 
-/* ---------- pinch zoom ---------- */
+/* ---------- pinch zoom + swipe ---------- */
 function attachZoom(area,img,onSwipe){
   let scale=1,tx=0,ty=0,start=null,lastTap=0,swipeDx=0;
   img.style.transition='none';
@@ -777,22 +1023,23 @@ function attachZoom(area,img,onSwipe){
   area.addEventListener('touchend',e=>{if(e.touches.length===0){start=null;if(scale===1&&onSwipe&&Math.abs(swipeDx)>0){const dx=swipeDx;swipeDx=0;if(Math.abs(dx)>70){onSwipe(dx<0?1:-1);return}img.style.transition='transform .18s';img.style.opacity='1';apply();setTimeout(()=>img.style.transition='none',200)}}else if(e.touches.length===1){const t=e.touches;start={x:t[0].clientX,y:t[0].clientY,tx,ty}}});
   area.addEventListener('wheel',e=>{e.preventDefault();scale=Math.min(6,Math.max(1,scale*(e.deltaY<0?1.1:0.9)));clamp();apply()},{passive:false});
 }
+function attachSwipe(el,onSwipe){let sx=null,sy=null;el.addEventListener('touchstart',e=>{const t=e.touches[0];sx=t.clientX;sy=t.clientY},{passive:true});el.addEventListener('touchend',e=>{if(sx===null)return;const t=e.changedTouches[0];const dx=t.clientX-sx,dy=t.clientY-sy;sx=null;if(Math.abs(dx)>60&&Math.abs(dx)>Math.abs(dy)*1.5)onSwipe(dx<0?1:-1)})}
 
-/* ---------- crop / rotate editor ---------- */
+/* ---------- crop / rotate editor (also the cover picker) ---------- */
 async function openEditor(p,after,opts){
-  const pick=opts&&opts.pick;const im=await loadImage(p.full);
-  let rot=0,ratio=pick?pick.ratio:null;let crop=pick&&pick.crop?{...pick.crop}:{x:0,y:0,w:1,h:1}; // fractions of the rotated image
+  const pick=opts&&opts.pick;const rec=await getFull(p.id);if(!rec||!rec.full){toast('Photo could not be loaded');return}
+  const im=await loadImage(rec.full);
+  let rot=0,ratio=pick?pick.ratio:null;let crop=pick&&pick.crop?{...pick.crop}:{x:0,y:0,w:1,h:1};
   const L=$('#layer');
   L.innerHTML=`<div class="editor"><div class="eh"><button class="icon-btn" data-e="cancel" aria-label="Cancel">${I.x}</button><div style="font-size:16px;font-weight:800">${pick?"Cover":"Edit"}</div><button class="pill on" data-e="save">${pick?"Use":"Save"}</button></div>
   <div style="flex:1;min-height:0;display:flex;align-items:center;justify-content:center"><canvas id="ecv"></canvas></div>
-  ${pick?`<div class="note" style="text-align:center;padding-bottom:10px">Drag the box to choose what shows on the cover.</div>`:`<div class="chips" style="padding-top:10px;justify-content:center">${[['free','Free'],['1','1:1'],['0.8','4:5'],['0.5625','9:16'],['1.7778','16:9']].map(([v,l])=>`<button class="pill" data-r="${v}">${l}</button>`).join('')}</div>
+  ${pick?`<div class="note" style="text-align:center;padding-bottom:calc(var(--sab) + 14px)">Drag the box to choose what shows on the cover.</div>`:`<div class="chips" style="padding-top:10px;justify-content:center">${[['free','Free'],['1','1:1'],['0.8','4:5'],['0.5625','9:16'],['1.7778','16:9']].map(([v,l])=>`<button class="pill" data-r="${v}">${l}</button>`).join('')}</div>
   <div class="bar" style="background:none"><button class="btn" data-e="rotl">Rotate ⟲</button><button class="btn" data-e="rotr">Rotate ⟳</button><button class="btn" data-e="reset">Reset</button><button class="btn" data-e="copy">Save as copy</button></div>`}</div>`;
   const cv=$('#ecv'),ctx=cv.getContext('2d');
   const rw=()=>rot%180?im.naturalHeight:im.naturalWidth,rh=()=>rot%180?im.naturalWidth:im.naturalHeight;
-  let box={x:0,y:0,w:0,h:0,s:1};
-  function layout(){const host=cv.parentElement;const W=host.clientWidth-24,H=host.clientHeight-24;const s=Math.min(W/rw(),H/rh());cv.width=Math.round(rw()*s);cv.height=Math.round(rh()*s);box={s,w:cv.width,h:cv.height};cv.style.width=cv.width+'px';cv.style.height=cv.height+'px';draw()}
+  function layout(){const host=cv.parentElement;const W=host.clientWidth-24,H=host.clientHeight-24;const s=Math.min(W/rw(),H/rh());cv.width=Math.round(rw()*s);cv.height=Math.round(rh()*s);cv.style.width=cv.width+'px';cv.style.height=cv.height+'px';draw2()}
   function drawImage(c,sx,sy,sw,sh,dw,dh){c.save();c.translate(dw/2,dh/2);c.rotate(rot*Math.PI/180);const iw=rot%180?dh:dw,ih=rot%180?dw:dh;c.drawImage(im,sx,sy,sw,sh,-iw/2,-ih/2,iw,ih);c.restore()}
-  function draw(){ctx.clearRect(0,0,cv.width,cv.height);drawImage(ctx,0,0,im.naturalWidth,im.naturalHeight,cv.width,cv.height);
+  function draw2(){ctx.clearRect(0,0,cv.width,cv.height);drawImage(ctx,0,0,im.naturalWidth,im.naturalHeight,cv.width,cv.height);
     const X=crop.x*cv.width,Y=crop.y*cv.height,W=crop.w*cv.width,H=crop.h*cv.height;
     ctx.fillStyle='rgba(0,0,0,.55)';ctx.fillRect(0,0,cv.width,Y);ctx.fillRect(0,Y+H,cv.width,cv.height-Y-H);ctx.fillRect(0,Y,X,H);ctx.fillRect(X+W,Y,cv.width-X-W,H);
     ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.strokeRect(X,Y,W,H);ctx.strokeStyle='rgba(255,255,255,.35)';ctx.lineWidth=1;for(let i=1;i<3;i++){ctx.beginPath();ctx.moveTo(X+W*i/3,Y);ctx.lineTo(X+W*i/3,Y+H);ctx.moveTo(X,Y+H*i/3);ctx.lineTo(X+W,Y+H*i/3);ctx.stroke()}
@@ -808,45 +1055,43 @@ async function openEditor(p,after,opts){
       if(right)n.w=Math.min(1-c.x,Math.max(MIN,c.w+dx));else{const nx=Math.min(c.x+c.w-MIN,Math.max(0,c.x+dx));n.w=c.w+(c.x-nx);n.x=nx}
       if(bottom)n.h=Math.min(1-c.y,Math.max(MIN,c.h+dy));else{const ny=Math.min(c.y+c.h-MIN,Math.max(0,c.y+dy));n.h=c.h+(c.y-ny);n.y=ny}
       if(ratio){const iw=rw(),ih=rh();let w=n.w*iw,h=w/ratio;if(n.y+h/ih>1||(!bottom&&c.y+c.h-h/ih<0)){h=bottom?(1-n.y)*ih:(c.y+c.h)*ih;w=h*ratio}n.w=w/iw;n.h=h/ih;if(!right)n.x=c.x+c.w-n.w;if(!bottom)n.y=c.y+c.h-n.h;if(n.x<0||n.x+n.w>1){return}}}
-    crop=n;draw()});
+    crop=n;draw2()});
   const end=()=>drag=null;cv.addEventListener('pointerup',end);cv.addEventListener('pointercancel',end);
-  if(pick){if(!pick.crop){crop={x:0,y:0,w:1,h:1};applyRatio();crop.x=(1-crop.w)/2;crop.y=(1-crop.h)/2}}
-  L.querySelectorAll('[data-r]').forEach(b=>b.onclick=()=>{L.querySelectorAll('[data-r]').forEach(x=>x.classList.remove('on'));b.classList.add('on');ratio=b.dataset.r==='free'?null:+b.dataset.r;applyRatio();draw()});
+  if(pick&&!pick.crop){crop={x:0,y:0,w:1,h:1};applyRatio();crop.x=(1-crop.w)/2;crop.y=(1-crop.h)/2}
+  L.querySelectorAll('[data-r]').forEach(b=>b.onclick=()=>{L.querySelectorAll('[data-r]').forEach(x=>x.classList.remove('on'));b.classList.add('on');ratio=b.dataset.r==='free'?null:+b.dataset.r;applyRatio();draw2()});
   const on=(sel,fn)=>{const el=L.querySelector(sel);if(el)el.onclick=fn};
   on('[data-e="rotl"]',()=>{rot=(rot+270)%360;crop={x:0,y:0,w:1,h:1};layout()});
   on('[data-e="rotr"]',()=>{rot=(rot+90)%360;crop={x:0,y:0,w:1,h:1};layout()});
   on('[data-e="reset"]',()=>{rot=0;ratio=null;crop={x:0,y:0,w:1,h:1};L.querySelectorAll('[data-r]').forEach(x=>x.classList.remove('on'));layout()});
-  L.querySelector('[data-e="cancel"]').onclick=()=>{L.innerHTML='';after()};
+  on('[data-e="cancel"]',()=>{L.innerHTML='';after()});
   async function commit(asCopy){
     const W=Math.round(crop.w*rw()),H=Math.round(crop.h*rh());
-    // render rotated full image, then cut the crop
     const full=document.createElement('canvas');full.width=rw();full.height=rh();drawImage(full.getContext('2d'),0,0,im.naturalWidth,im.naturalHeight,full.width,full.height);
     const out=document.createElement('canvas');out.width=W;out.height=H;out.getContext('2d').drawImage(full,Math.round(crop.x*rw()),Math.round(crop.y*rh()),W,H,0,0,W,H);
     const blob=await toBlob(out,.9);const im2=await loadImage(blob);
-    const fullB=await toBlob(draw2(im2,2000),.86),thumbB=await toBlob(draw2(im2,320),.8);
-    let orig=p.orig||{buf:await p.full.arrayBuffer(),w:p.w,h:p.h,hash:p.hash};
-    if(orig.full&&!orig.buf){try{orig={buf:await orig.full.arrayBuffer(),w:orig.w,h:orig.h,hash:orig.hash}}catch(e){orig={buf:await p.full.arrayBuffer(),w:p.w,h:p.h,hash:p.hash}}}
-    const target=asCopy?{...p,id:uid(),name:p.name.replace(/(\.\w+)?$/,' (edited)$1'),imported:Date.now(),tags:p.tags.map(t=>({...t}))}:p;
-    target.orig=orig;
-    Object.assign(target,{full:fullB,thumb:thumbB,w:im2.naturalWidth,h:im2.naturalHeight,hash:dhash(im2)});
-    ['t','f'].forEach(k=>{if(urls[k+target.id]){URL.revokeObjectURL(urls[k+target.id]);delete urls[k+target.id]}});
-    await saveBlobs(target);await savePhoto(target);if(asCopy){S.photos.push(target);S.photos.sort(byNewest)}
+    const fullB=await toBlob(draw(im2,2000),.86),thumbB=await toBlob(draw(im2,320),.8);
+    let orig=rec.orig||{buf:await rec.full.arrayBuffer(),w:p.w,h:p.h,hash:p.hash};
+    if(orig.full&&!orig.buf){try{orig={buf:await orig.full.arrayBuffer(),w:orig.w,h:orig.h,hash:orig.hash}}catch(e){orig={buf:await rec.full.arrayBuffer(),w:p.w,h:p.h,hash:p.hash}}}
+    const target=asCopy?{...meta(p),id:uid(),name:(p.name||'photo').replace(/(\.\w+)?$/,' (edited)$1'),imported:Date.now(),src:null,tags:p.tags.map(t=>({...t}))}:p;
+    Object.assign(target,{w:im2.naturalWidth,h:im2.naturalHeight,hash:dhash(im2)});
+    try{await saveImages(target,fullB,thumbB,orig);await savePhoto(target)}catch(e){toast(isQuota(e)?'Storage is full':'Could not save');return}
+    if(asCopy){S.photos.push(target);photoMap.set(target.id,target);S.photos.sort(byNewest);recount()}
     L.innerHTML='';toast(asCopy?'Saved as copy':'Photo updated');if(asCopy){render();openViewer(target.id)}else after();
   }
-  const draw2=draw_;
   on('[data-e="save"]',()=>{if(pick){L.innerHTML='';pick.onPick({x:crop.x,y:crop.y,w:crop.w,h:crop.h})}else commit(false)});
   on('[data-e="copy"]',()=>commit(true));
   requestAnimationFrame(layout);
 }
-const draw_=(im,max)=>draw(im,max);
 
 /* ---------- boot ---------- */
 $('#picker').onchange=e=>{importFiles(e.target.files);e.target.value=''};
 $('#zipPicker').onchange=e=>{if(e.target.files[0])importZip(e.target.files[0]);e.target.value=''};
+function showUpdateBanner(){if($('#upd'))return;const b=document.createElement('div');b.id='upd';b.className='banner';b.innerHTML='<span>A new version is ready.</span><button>Reload</button>';b.querySelector('button').onclick=()=>location.reload();document.body.appendChild(b)}
 (async()=>{
-  await load();render();
+  try{await load()}catch(e){document.body.innerHTML=`<div class="empty" style="padding-top:120px">Could not open the photo library.<br>${esc(e.message||e)}<br><br>If another tab of this app is open, close it and reload.</div>`;return}
+  render();
   if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(()=>{});
-  if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('./sw.js').catch(()=>{});
+  if('serviceWorker' in navigator&&location.protocol==='https:'){navigator.serviceWorker.register('./sw.js').then(reg=>{reg.addEventListener('updatefound',()=>{const w=reg.installing;if(!w)return;w.addEventListener('statechange',()=>{if(w.state==='installed'&&navigator.serviceWorker.controller)showUpdateBanner()})})}).catch(()=>{})}
   drainShareInbox();
   if(location.search.includes('shared'))history.replaceState(null,'',location.pathname);
 })();
