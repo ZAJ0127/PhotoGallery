@@ -301,7 +301,7 @@ async function deletePhotos(ids){
 </script>
 <script>
 /* ---------- navigation ---------- */
-function go(view,extra={}){Object.assign(S,extra);S.view=view;S.select=null;render();$('#app').scrollTop=0}
+function go(view,extra={}){Object.assign(S,extra);S.view=view;S.select=null;render(true);const sc=$('#app .scroll');if(sc)sc.scrollTop=0}
 function nav(){
   const p=primaryCat();const cur=S.view;
   const tab=(id,ic,label,on)=>`<button class="tab ${on?'on':''}" data-nav="${id}">${ic}${label}</button>`;
@@ -313,10 +313,12 @@ function nav(){
     ${tab('more',I.more,'More',cur==='more'||cur==='manage'||cur==='dupes')}
   </nav>`;
 }
-function render(){
+function render(reset){
   const V={gallery,cat:catView,item:itemView,sort:sortView,favorites:favView,shuffle:shuffleView,more:moreView,dupes:dupesView,manage:manageView};
+  const prev=$('#app .scroll');const keep=!reset&&prev?prev.scrollTop:0;
   $('#app').innerHTML=(V[S.view]||gallery)();
   bind();
+  const sc=$('#app .scroll');if(sc&&keep)sc.scrollTop=keep;
 }
 function bind(){
   const app=$('#app');
@@ -335,17 +337,23 @@ function monthGrid(photos,selSet){
 }
 function coverHTML(id,fallbackText,crop){const p=photoById(id);if(p&&crop&&crop.w>0&&crop.h>0)return `<span style="position:relative;display:block;width:100%;height:100%;overflow:hidden"><img src="${thumbUrl(p)}" alt="" data-p="${p.id}" data-k="t" style="position:absolute;left:${(-crop.x/crop.w*100).toFixed(3)}%;top:${(-crop.y/crop.h*100).toFixed(3)}%;width:${(100/crop.w).toFixed(3)}%;height:${(100/crop.h).toFixed(3)}%;object-fit:fill"></span>`;return p?`<img src="${thumbUrl(p)}" alt="" data-p="${p.id}" data-k="t">`:`<span style="color:#111114">${esc(fallbackText)}</span>`}
 
+function updateSelBar(){
+  const n=S.select?S.select.size:0;const c=$('#selCount');if(c)c.textContent=n+' selected';
+  const a=$('#selApply');if(a)a.textContent=`Apply to ${n} photo${n===1?'':'s'}`;
+  document.querySelectorAll('[data-act="selTag"],[data-act="selFav"],[data-act="selExport"],[data-act="selDelete"]').forEach(x=>x.disabled=!n);
+  const all=$('[data-act="selAll"]');if(all){const list=$('#app').querySelectorAll('.tile').length;all.textContent=n===list?'Select none':'Select all'}
+}
 /* ---------- Gallery ---------- */
 function gallery(){
   const untagged=S.photos.filter(p=>!p.tags.length);
   let list=S.galFilter==='unsorted'?untagged:S.galFilter==='tagged'?S.photos.filter(p=>p.tags.length):S.photos;
   if(S.galType)list=list.filter(p=>p.tags.some(t=>t.item===S.galType));
   const sel=S.select;
-  const head=sel?`<div class="head"><button class="pill" data-act="selCancel">Cancel</button><div style="font-size:16px;font-weight:800">${sel.size} selected</div><button class="pill" data-act="selAll">${sel.size===list.length?'Select none':'Select all'}</button></div>`
+  const head=sel?`<div class="head"><button class="pill" data-act="selCancel">Cancel</button><div id="selCount" style="font-size:16px;font-weight:800">${sel.size} selected</div><button class="pill" data-act="selAll">${sel.size===list.length?'Select none':'Select all'}</button></div>`
    :`<div class="head"><h1 class="title">Gallery</h1><div style="display:flex;gap:8px"><button class="pill" data-act="selStart" ${S.photos.length?'':'disabled'}>Select</button><button class="pill on" data-act="add">${I.plus.replace('20','16').replace('20','16')}Add photos</button></div></div>`;
   const chip=(k,l,n)=>`<button class="pill ${S.galFilter===k?'on':''}" data-act="galFilter" data-k="${k}">${l} · ${n}</button>`;
   const body=S.photos.length?monthGrid(list,sel):`<div class="empty">No photos yet.<br>Tap Add photos to pick from your library, or share photos to this app.</div>`;
-  const bar=sel?`<div class="bar" style="flex-direction:column;gap:8px;background:var(--bg2);border-top:1px solid var(--line)"><div style="font-size:12px;font-weight:700;color:var(--mut)">Apply to ${sel.size} photo${sel.size===1?'':'s'}</div><div style="display:flex;gap:8px"><button class="btn pri" style="height:48px;flex:1" data-act="selTag" ${sel.size?'':'disabled'}>Tag…</button><button class="btn" style="height:48px" data-act="selFav" ${sel.size?'':'disabled'}>${I.star.replace('22','16').replace('22','16')}Favorite</button><button class="btn" style="height:48px" data-act="selExport" ${sel.size?'':'disabled'}>Export</button><button class="btn danger" style="height:48px;flex:0 0 48px;padding:0" data-act="selDelete" aria-label="Delete selected" ${sel.size?'':'disabled'}>${I.trash}</button></div></div>`:nav();
+  const bar=sel?`<div class="bar" style="flex-direction:column;gap:8px;background:var(--bg2);border-top:1px solid var(--line)"><div id="selApply" style="font-size:12px;font-weight:700;color:var(--mut)">Apply to ${sel.size} photo${sel.size===1?'':'s'}</div><div style="display:flex;gap:8px"><button class="btn pri" style="height:48px;flex:1" data-act="selTag" ${sel.size?'':'disabled'}>Tag…</button><button class="btn" style="height:48px" data-act="selFav" ${sel.size?'':'disabled'}>${I.star.replace('22','16').replace('22','16')}Favorite</button><button class="btn" style="height:48px" data-act="selExport" ${sel.size?'':'disabled'}>Export</button><button class="btn danger" style="height:48px;flex:0 0 48px;padding:0" data-act="selDelete" aria-label="Delete selected" ${sel.size?'':'disabled'}>${I.trash}</button></div></div>`:nav();
   return `<div class="screen">${head}<div class="chips">${chip('all','All',S.photos.length)}${chip('unsorted','Unsorted',untagged.length)}${chip('tagged','Tagged',S.photos.length-untagged.length)}${quickCats().flatMap(c=>sortedItems(c)).map(i=>`<button class="pill ${S.galType===i.id?'acc':''}" data-act="galType" data-k="${i.id}">${esc(i.name)}</button>`).join('')}</div><div class="scroll">${body}${S.photos.length?'<div class="note">Dots under a photo show its tagged items. Tap a photo to open it, or hold to select.</div>':''}</div>${bar}</div>`;
 }
 
@@ -616,7 +624,7 @@ async function importZip(file){
 const actions={
   add:()=>$('#picker').click(),
   galFilter:b=>{S.galFilter=b.dataset.k;render()},
-  tile:b=>{if(S.select){const id=b.dataset.id;S.select.has(id)?S.select.delete(id):S.select.add(id);render()}else openViewer(b.dataset.id,[...$('#app').querySelectorAll('.tile')].map(t=>t.dataset.id))},
+  tile:b=>{if(S.select){const id=b.dataset.id;S.select.has(id)?S.select.delete(id):S.select.add(id);b.classList.toggle('sel',S.select.has(id));const chk=b.querySelector('.chk');if(chk)chk.innerHTML=S.select.has(id)?I.check:'';updateSelBar()}else openViewer(b.dataset.id,[...$('#app').querySelectorAll('.tile')].map(t=>t.dataset.id))},
   selStart:()=>{S.select=new Set();render()},selCancel:()=>{S.select=null;render()},
   selAll:()=>{let list=S.galFilter==='unsorted'?S.photos.filter(p=>!p.tags.length):S.galFilter==='tagged'?S.photos.filter(p=>p.tags.length):S.photos;if(S.galType)list=list.filter(p=>p.tags.some(t=>t.item===S.galType));S.select=S.select.size===list.length?new Set():new Set(list.map(p=>p.id));render()},
   selTag:()=>tagSheet(`Tag ${S.select.size} photos`,[],async d=>{for(const id of S.select){const p=photoById(id);for(const t of d)addTag(p.tags,t.item,t.sub);await savePhoto(p)}toast('Tags added');S.select=null;render()}),
