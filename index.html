@@ -362,14 +362,19 @@ function itemCard(i,cat,reorder){
 function itemView(){
   const it=itemById(S.itemId);if(!it)return gallery();const cat=catById(it.cat);
   const all=S.photos.filter(p=>p.tags.some(t=>t.item===it.id));
-  const shown=S.subId?all.filter(p=>p.tags.some(t=>t.item===it.id&&t.sub===S.subId)):all;
+  const bySub=S.subId?all.filter(p=>p.tags.some(t=>t.item===it.id&&t.sub===S.subId)):all;
+  const typeIt=S.typeId&&itemById(S.typeId);
+  const shown=typeIt?bySub.filter(p=>p.tags.some(t=>t.item===typeIt.id)):bySub;
   const sub=subOf(it,S.subId);
+  const folders=quickCats().map(c=>{const fs=sortedItems(c).map(q=>{const ps=bySub.filter(p=>p.tags.some(t=>t.item===q.id));return {q,ps}}).filter(x=>x.ps.length);return fs.length?`<div class="row-head" style="padding-top:4px"><div class="label" style="padding:0">${esc(c.name)}${sub?' · '+esc(sub.name):''}</div>${typeIt?`<button class="link" data-act="pickType" data-id="">Show all</button>`:''}</div><div class="grid2" style="margin-bottom:18px">${fs.map(({q,ps})=>`<button class="card" data-act="pickType" data-id="${q.id}" style="${S.typeId===q.id?'outline:2px solid var(--acc);outline-offset:4px;border-radius:16px':''}"><div class="cov" style="aspect-ratio:4/3;background:var(--sur3)">${coverHTML(ps[0].id,'')}</div><div class="nm">${esc(q.name)} <span style="color:var(--mut);font-weight:600">· ${ps.length}</span></div></button>`).join('')}</div>`:''}).join('');
+  const crumbs=[it.name,sub&&sub.name,typeIt&&typeIt.name].filter(Boolean).join(' · ');
   return `<div class="screen"><div class="head"><button class="icon-btn" data-act="back" aria-label="Back">${I.back}</button><button class="icon-btn" data-act="editItem" aria-label="Edit">${I.edit}</button></div>
   <div class="scroll">
    <div style="display:flex;align-items:center;gap:14px;padding:0 20px 18px"><div style="width:84px;height:84px;border-radius:42px;background:${colorFor(it.id)};overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:30px;font-weight:800;flex-shrink:0">${coverHTML(it.cover,it.name[0]||'?')}</div><div><div style="font-size:26px;font-weight:800;letter-spacing:-.02em">${esc(it.name)}</div><div style="font-size:13px;font-weight:600;color:var(--mut)">${groupName(it)?esc(groupName(it))+'<br>':''}${all.length} photo${all.length===1?'':'s'} · ${it.subs.length} ${esc(cat.subLabel.toLowerCase())}</div></div></div>
    <div class="row-head"><div class="label" style="padding:0">${esc(cat.subLabel)}</div><button class="link" data-act="newSub">+ Add ${esc(cat.subLabel.toLowerCase().replace(/s$/,''))}</button></div>
    ${it.subs.length?`<div class="grid2" style="margin-bottom:18px">${it.subs.map(s=>{const n=all.filter(p=>p.tags.some(t=>t.item===it.id&&t.sub===s.id)).length;return `<button class="card" data-act="pickSub" data-id="${s.id}" style="${S.subId===s.id?'outline:2px solid var(--acc);outline-offset:4px;border-radius:16px':''}"><div class="cov" style="aspect-ratio:4/3;background:var(--sur3)">${coverHTML(s.cover,'')}</div><div class="nm">${esc(s.name)} <span style="color:var(--mut);font-weight:600">· ${n}</span></div></button>`}).join('')}</div>`:''}
-   <div class="row-head"><div class="label" style="padding:0">${sub?esc(it.name+' · '+sub.name):'All '+esc(it.name)+' photos'}</div>${sub?`<button class="link" data-act="pickSub" data-id="">Show all</button><button class="link" style="margin-left:12px" data-act="editSub" data-id="${sub.id}">Edit</button>`:'<span style="font-size:12px;font-weight:600;color:var(--mut)">Newest first</span>'}</div>
+   ${folders}
+   <div class="row-head"><div class="label" style="padding:0">${sub||typeIt?esc(crumbs):'All '+esc(it.name)+' photos'}</div>${sub||typeIt?`<button class="link" data-act="clearFilters">Show all</button>${sub?`<button class="link" style="margin-left:12px" data-act="editSub" data-id="${sub.id}">Edit</button>`:''}`:'<span style="font-size:12px;font-weight:600;color:var(--mut)">Newest first</span>'}</div>
    ${shown.length?`<div class="grid3">${shown.map(p=>tileHTML(p,false)).join('')}</div>`:`<div class="empty">Nothing here yet. Use Sort to tag photos.</div>`}
   </div>${nav()}</div>`;
 }
@@ -530,16 +535,20 @@ function tagSheet(title,initial,onDone){
   };
   sheet(title,'<div id="tagBody"></div>',paint);
 }
-function openViewer(id){
-  const p=photoById(id);if(!p)return;
+function openViewer(id,list){
+  if(!photoById(id))return;
+  list=(list&&list.length?list:[id]).filter(photoById);if(!list.includes(id))list=[id,...list];
+  const step=d=>{const i=list.indexOf(id)+d;if(i<0||i>=list.length){toast(d>0?'Last photo':'First photo');return}id=list[i];paint()};
   const paint=()=>{const p=photoById(id);if(!p){closeSheet();return}
-   $('#layer').innerHTML=`<div class="viewer"><div class="vh"><button class="icon-btn" data-v="close" aria-label="Close">${I.x}</button><button class="icon-btn" data-v="fav" aria-label="Favorite">${p.fav?I.starF:I.star}</button></div><div class="vi" id="zoomArea"><img src="${fullUrl(p)}" alt="" id="zoomImg" data-p="${p.id}" data-k="f" style="touch-action:none;will-change:transform" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'empty',textContent:'This photo could not be loaded. Tap Revert if it is available, otherwise re-import it.'}))"></div>
+   const pos=list.length>1?`${list.indexOf(id)+1} / ${list.length}`:'';
+   $('#layer').innerHTML=`<div class="viewer"><div class="vh"><button class="icon-btn" data-v="close" aria-label="Close">${I.x}</button><div style="font-size:13px;font-weight:700;color:var(--mut);align-self:center">${pos}</div><button class="icon-btn" data-v="fav" aria-label="Favorite">${p.fav?I.starF:I.star}</button></div><div class="vi" id="zoomArea"><img src="${fullUrl(p)}" alt="" id="zoomImg" data-p="${p.id}" data-k="f" style="touch-action:none;will-change:transform" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'empty',textContent:'This photo could not be loaded. Tap Revert if it is available, otherwise re-import it.'}))"></div>
    <div class="vf"><div class="tags" style="padding-top:4px">${p.tags.map(t=>{const l=tagLabel(t);return l?`<span class="tag"><span class="dot" style="background:${colorFor(t.item)}"></span>${esc(l)}</span>`:''}).join('')||'<span style="font-size:12px;font-weight:600;color:var(--mut)">No tags</span>'}</div><div style="text-align:center;font-size:11px;font-weight:600;color:var(--mut);padding:4px 0 8px">${esc(p.name)} · ${new Date(p.added).toLocaleDateString()}</div>
    <div class="bar" style="padding-bottom:4px;background:none"><button class="btn sm" data-v="tags">${I.tagI}Tags</button><button class="btn sm" data-v="edit">${I.edit.replace(/18/g,"16")}Edit</button>${p.orig?`<button class="btn sm" data-v="revert">Revert</button>`:""}<button class="btn sm" data-v="cover" ${p.tags.length?'':'disabled'}>Set as cover</button><button class="btn sm danger" data-v="del" aria-label="Delete">${I.trash}</button></div></div></div>`;
    const L=$('#layer');
    L.querySelector('[data-v="close"]').onclick=()=>{closeSheet();render()};
    L.querySelector('[data-v="fav"]').onclick=async()=>{p.fav=!p.fav;await savePhoto(p);paint()};
-   attachZoom($('#zoomArea'),$('#zoomImg'));
+   attachZoom($('#zoomArea'),$('#zoomImg'),list.length>1?step:null);
+   L.onkeydown=e=>{if(e.key==='ArrowRight')step(1);else if(e.key==='ArrowLeft')step(-1);else if(e.key==='Escape'){closeSheet();render()}};L.tabIndex=-1;L.focus();
    L.querySelector('[data-v="edit"]').onclick=()=>openEditor(p,paint);
    const rv=L.querySelector('[data-v="revert"]');if(rv)rv.onclick=async()=>{if(!confirm('Restore the original photo as imported? Tags stay.'))return;const o=p.orig;let full;try{const buf=o.buf||await o.full.arrayBuffer();if(!buf||!buf.byteLength)throw 0;full=new Blob([buf],{type:'image/jpeg'});const im=await loadImage(full);const thumb=await toBlob(draw(im,320),.8);Object.assign(p,{full,thumb,w:o.w,h:o.h,hash:o.hash})}catch(e){toast('Original could not be read on this device');return}delete p.orig;['t','f'].forEach(k=>{if(urls[k+p.id]){URL.revokeObjectURL(urls[k+p.id]);delete urls[k+p.id]}});await savePhoto(p);toast('Original restored');paint()};
    L.querySelector('[data-v="tags"]').onclick=()=>tagSheet('Tags',p.tags,async d=>{p.tags=d;await savePhoto(p);paint()});
@@ -547,7 +556,7 @@ function openViewer(id){
      const opts=[];for(const t of p.tags){const it=itemById(t.item);if(!it)continue;if(!opts.some(o=>o.k==='i'+it.id))opts.push({k:'i'+it.id,l:it.name+' (character cover)',fn:async()=>{it.cover=p.id;await saveItem(it)}});const sb=subOf(it,t.sub);if(sb)opts.push({k:'s'+sb.id,l:it.name+' · '+sb.name,fn:async()=>{sb.cover=p.id;await saveItem(it)}})}
      sheet('Set as cover for',`<div class="list">${opts.map((o,i)=>`<button class="li" data-o="${i}"><div class="t">${esc(o.l)}</div>${I.chev}</button>`).join('')}</div>`,el=>el.querySelectorAll('[data-o]').forEach(b=>b.onclick=async()=>{await opts[+b.dataset.o].fn();toast('Cover updated');paint()}));
    };
-   L.querySelector('[data-v="del"]').onclick=async()=>{if(!confirm('Delete this photo from the app?'))return;await deletePhotos([p.id]);closeSheet();render()};
+   L.querySelector('[data-v="del"]').onclick=async()=>{if(!confirm('Delete this photo from the app?'))return;const i=list.indexOf(id);await deletePhotos([p.id]);list=list.filter(x=>x!==p.id);if(!list.length){closeSheet();render();return}id=list[Math.min(i,list.length-1)];paint()};
   };
   paint();
 }
@@ -582,7 +591,7 @@ async function importZip(file){
 const actions={
   add:()=>$('#picker').click(),
   galFilter:b=>{S.galFilter=b.dataset.k;render()},
-  tile:b=>{if(S.select){const id=b.dataset.id;S.select.has(id)?S.select.delete(id):S.select.add(id);render()}else openViewer(b.dataset.id)},
+  tile:b=>{if(S.select){const id=b.dataset.id;S.select.has(id)?S.select.delete(id):S.select.add(id);render()}else openViewer(b.dataset.id,[...$('#app').querySelectorAll('.tile')].map(t=>t.dataset.id))},
   selStart:()=>{S.select=new Set();render()},selCancel:()=>{S.select=null;render()},
   selAll:()=>{let list=S.galFilter==='unsorted'?S.photos.filter(p=>!p.tags.length):S.galFilter==='tagged'?S.photos.filter(p=>p.tags.length):S.photos;if(S.galType)list=list.filter(p=>p.tags.some(t=>t.item===S.galType));S.select=S.select.size===list.length?new Set():new Set(list.map(p=>p.id));render()},
   selTag:()=>tagSheet(`Tag ${S.select.size} photos`,[],async d=>{for(const id of S.select){const p=photoById(id);for(const t of d)addTag(p.tags,t.item,t.sub);await savePhoto(p)}toast('Tags added');S.select=null;render()}),
@@ -591,12 +600,14 @@ const actions={
   selDelete:async()=>{if(!confirm(`Delete ${S.select.size} photos from the app?`))return;await deletePhotos([...S.select]);S.select=null;render()},
   catSort:b=>{S.catSort[S.catView]=b.dataset.k;render()},
   newItem:()=>newItemSheet(S.catView),
-  openItem:b=>{S.history.push({view:S.view,catView:S.catView});go('item',{itemId:b.dataset.id,subId:null})},
+  openItem:b=>{S.history.push({view:S.view,catView:S.catView});go('item',{itemId:b.dataset.id,subId:null,typeId:null})},
   itemUp:b=>moveItem(b.dataset.id,-1),itemDown:b=>moveItem(b.dataset.id,1),
   back:()=>{const h=S.history.pop();S.dupePairs=null;if(h)go(h.view,{catView:h.catView});else go('gallery')},
   editItem:()=>{const it=itemById(S.itemId);const cat=catById(it.cat);itemForm(cat,it)},
   newSub:()=>subForm(itemById(S.itemId)),
   pickSub:b=>{S.subId=b.dataset.id||null;render()},
+  pickType:b=>{S.typeId=b.dataset.id||null;render()},
+  clearFilters:()=>{S.subId=null;S.typeId=null;render()},
   editSub:b=>subForm(itemById(S.itemId),subOf(itemById(S.itemId),b.dataset.id)),
   sortFilter:b=>startSort(b.dataset.k),
   closeSort:()=>go('gallery'),
@@ -706,14 +717,15 @@ async function drainShareInbox(){
 }
 
 /* ---------- pinch zoom ---------- */
-function attachZoom(area,img){
-  let scale=1,tx=0,ty=0,start=null,lastTap=0;
+function attachZoom(area,img,onSwipe){
+  let scale=1,tx=0,ty=0,start=null,lastTap=0,swipeDx=0;
+  img.style.transition='none';
   const apply=()=>{img.style.transform=`translate(${tx}px,${ty}px) scale(${scale})`};
   const clamp=()=>{if(scale<=1){scale=1;tx=0;ty=0;return}const r=area.getBoundingClientRect(),iw=img.clientWidth*scale,ih=img.clientHeight*scale;const mx=Math.max(0,(iw-r.width)/2),my=Math.max(0,(ih-r.height)/2);tx=Math.min(mx,Math.max(-mx,tx));ty=Math.min(my,Math.max(-my,ty))};
   const dist=t=>Math.hypot(t[0].clientX-t[1].clientX,t[0].clientY-t[1].clientY);
   area.addEventListener('touchstart',e=>{const t=e.touches;if(t.length===2)start={d:dist(t),s:scale,cx:(t[0].clientX+t[1].clientX)/2,cy:(t[0].clientY+t[1].clientY)/2,tx,ty};else if(t.length===1){start={x:t[0].clientX,y:t[0].clientY,tx,ty};const now=Date.now();if(now-lastTap<300){scale=scale>1?1:2.5;tx=0;ty=0;clamp();apply();start=null}lastTap=now}},{passive:true});
-  area.addEventListener('touchmove',e=>{const t=e.touches;if(!start)return;e.preventDefault();if(t.length===2&&start.d){scale=Math.min(6,Math.max(1,start.s*dist(t)/start.d));const cx=(t[0].clientX+t[1].clientX)/2,cy=(t[0].clientY+t[1].clientY)/2;tx=start.tx+(cx-start.cx);ty=start.ty+(cy-start.cy)}else if(t.length===1&&start.x!==undefined&&scale>1){tx=start.tx+(t[0].clientX-start.x);ty=start.ty+(t[0].clientY-start.y)}clamp();apply()},{passive:false});
-  area.addEventListener('touchend',e=>{if(e.touches.length===0)start=null;else if(e.touches.length===1){const t=e.touches;start={x:t[0].clientX,y:t[0].clientY,tx,ty}}});
+  area.addEventListener('touchmove',e=>{const t=e.touches;if(!start)return;e.preventDefault();if(t.length===2&&start.d){scale=Math.min(6,Math.max(1,start.s*dist(t)/start.d));const cx=(t[0].clientX+t[1].clientX)/2,cy=(t[0].clientY+t[1].clientY)/2;tx=start.tx+(cx-start.cx);ty=start.ty+(cy-start.cy)}else if(t.length===1&&start.x!==undefined&&scale>1){tx=start.tx+(t[0].clientX-start.x);ty=start.ty+(t[0].clientY-start.y)}else if(t.length===1&&start.x!==undefined&&scale===1&&onSwipe){const dx=t[0].clientX-start.x,dy=t[0].clientY-start.y;if(Math.abs(dx)>Math.abs(dy)){swipeDx=dx;img.style.transform=`translate(${dx}px,0) scale(1)`;img.style.opacity=String(Math.max(.4,1-Math.abs(dx)/400));return}}clamp();apply()},{passive:false});
+  area.addEventListener('touchend',e=>{if(e.touches.length===0){start=null;if(scale===1&&onSwipe&&Math.abs(swipeDx)>0){const dx=swipeDx;swipeDx=0;if(Math.abs(dx)>70){onSwipe(dx<0?1:-1);return}img.style.transition='transform .18s';img.style.opacity='1';apply();setTimeout(()=>img.style.transition='none',200)}}else if(e.touches.length===1){const t=e.touches;start={x:t[0].clientX,y:t[0].clientY,tx,ty}}});
   area.addEventListener('wheel',e=>{e.preventDefault();scale=Math.min(6,Math.max(1,scale*(e.deltaY<0?1.1:0.9)));clamp();apply()},{passive:false});
 }
 
