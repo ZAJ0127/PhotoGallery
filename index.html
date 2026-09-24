@@ -567,9 +567,9 @@ function tagSheet(title,initial,onDone,st){
     <div style="padding:16px 20px 0"><button class="btn pri" style="width:100%" data-done>Apply</button></div>`;
     const B=$('#tagBody');
     B.querySelectorAll('[data-quick]').forEach(b=>b.onclick=()=>{const id=b.dataset.quick;const k=draft.findIndex(t=>t.item===id);if(k>=0)draft.splice(k,1);else draft.push({item:id,sub:null});paint()});
-    B.querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>{draft.splice(+b.dataset.rm,1);paint()});
+    B.querySelectorAll('[data-rm]').forEach(b=>b.onclick=e=>{const t=draft[+b.dataset.rm];if(e.target.closest('.x')){draft.splice(+b.dataset.rm,1);paint();return}const it=itemById(t.item);if(it&&!catById(it.cat).quick){catId=it.cat;itemId=it.id;paint()}});
     B.querySelectorAll('[data-cat]').forEach(b=>b.onclick=()=>{catId=b.dataset.cat;itemId=null;paint()});
-    B.querySelectorAll('[data-item]').forEach(b=>b.onclick=()=>{const i=itemById(b.dataset.item);if(!i.subs.length){const k=draft.findIndex(t=>t.item===i.id);if(k>=0)draft.splice(k,1);else draft.push({item:i.id,sub:null});itemId=null}else itemId=i.id;paint()});
+    B.querySelectorAll('[data-item]').forEach(b=>b.onclick=()=>{const i=itemById(b.dataset.item);if(itemId===i.id&&i.subs.length){itemId=null}else{itemId=i.id;if(!i.subs.length){const k=draft.findIndex(t=>t.item===i.id);if(k>=0)draft.splice(k,1);else draft.push({item:i.id,sub:null})}}paint()});
     B.querySelectorAll('[data-sub]').forEach(b=>b.onclick=()=>{const sub=b.dataset.sub||null;const k=draft.findIndex(t=>t.item===itemId&&(t.sub||null)===sub);if(k>=0)draft.splice(k,1);else addTag(draft,itemId,sub);paint()});
     B.querySelector('[data-done]').onclick=()=>{closeSheet();onDone(draft)};
     B.querySelector('[data-newitem]').onclick=()=>{closeSheet();itemForm(cat,null,ni=>{if(ni.subs.length)itemId=ni.id;else{addTag(draft,ni.id,null);itemId=null}reopen()},()=>reopen())};
@@ -661,9 +661,9 @@ const actions={
   sortFilter:b=>startSort(b.dataset.k),
   closeSort:()=>go('gallery'),
   sortCat:b=>{S.sortCat=b.dataset.k;S.sortItem=null;render()},
-  sortItem:b=>{const i=itemById(b.dataset.id);if(!i.subs.length){toggleDraft(i.id,null);S.sortItem=null}else S.sortItem=i.id;render()},
+  sortItem:b=>{const i=itemById(b.dataset.id);if(S.sortItem===i.id&&i.subs.length)S.sortItem=null;else{S.sortItem=i.id;if(!i.subs.length)toggleDraft(i.id,null)}render()},
   sortSub:b=>{toggleDraft(S.sortItem,b.dataset.id||null);render()},
-  draftRm:b=>{S.draft.splice(+b.dataset.i,1);render()},
+  draftRm:(b,e)=>{const t=S.draft[+b.dataset.i];if(e&&e.target.closest('.x')){S.draft.splice(+b.dataset.i,1);render();return}const it=itemById(t.item);if(it&&!catById(it.cat).quick){S.sortCat=it.cat;S.sortItem=it.id;render()}},
   sortQuick:b=>{toggleDraft(b.dataset.id,null);render()},
   sortQuickNew:b=>newItemSheet(b.dataset.cat,i=>{toggleDraft(i.id,null);render()}),
   galType:b=>{S.galType=S.galType===b.dataset.k?null:b.dataset.k;render()},
