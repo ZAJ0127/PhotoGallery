@@ -521,7 +521,7 @@ function sheet(title,bodyHTML,onBind){
   onBind&&onBind(L.firstElementChild);
 }
 function closeSheet(){$('#layer').innerHTML=''}
-function formSheet(title,fields,onSave,onDelete){
+function formSheet(title,fields,onSave,onDelete,onCancel){
   const b=`<div class="form">${fields.map(f=>f.type==='select'?`<label>${esc(f.label)}<select name="${f.name}">${f.options.map(o=>`<option value="${esc(o.v)}" ${o.v===f.value?'selected':''}>${esc(o.l)}</option>`).join('')}</select></label>`:`<label>${esc(f.label)}<input name="${f.name}" value="${esc(f.value||'')}" placeholder="${esc(f.ph||'')}" ${f.list?`list="${f.list}"`:''} autocomplete="off"></label>${f.list?`<datalist id="${f.list}">${f.listOpts.map(o=>`<option value="${esc(o)}">`).join('')}</datalist>`:''}`).join('')}
   <button class="btn pri" data-save>Save</button>${onDelete?`<button class="btn danger" data-del>Delete</button>`:''}</div>`;
   sheet(title,b,el=>{
@@ -532,17 +532,19 @@ function formSheet(title,fields,onSave,onDelete){
     el.querySelector('[data-save]').onclick=()=>{const v=read();if(fields.some(f=>f.required&&!v[f.name])){toast('Name is required');return}closeSheet();onSave(v)};
     el.querySelectorAll('input').forEach(i=>i.onkeydown=e=>{if(e.key==='Enter')el.querySelector('[data-save]').click()});
     if(onDelete)el.querySelector('[data-del]').onclick=()=>{closeSheet();onDelete()};
+    if(onCancel)el.parentElement.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',e=>{if(b.classList.contains('sheet-bg')?e.target===b:true)onCancel()}));
   });
 }
-function tagSheet(title,initial,onDone){
-  let draft=initial.map(t=>({...t}));let catId=primaryCat()&&primaryCat().id;let itemId=null;
+function tagSheet(title,initial,onDone,st){
+  let draft=initial.map(t=>({...t}));let catId=(st&&st.catId)||(primaryCat()&&primaryCat().id);let itemId=(st&&st.itemId)||null;
+  const reopen=(extra)=>tagSheet(title,draft,onDone,{catId,itemId,...extra});
   const paint=()=>{
     const cats=mainCats();const cat=catById(catId)||cats[0];catId=cat.id;const its=sortedItems(cat);const it=itemById(itemId);
     $('#tagBody').innerHTML=`<div class="tags" style="justify-content:flex-start">${draft.map((t,i)=>{const l=tagLabel(t);return l?`<button class="tag" data-rm="${i}"><span class="dot" style="background:${colorFor(t.item)}"></span>${esc(l)}<span class="x">${I.x.replace(/18/g,'10')}</span></button>`:''}).join('')||'<span style="font-size:12px;font-weight:600;color:var(--mut)">No tags yet</span>'}</div><div style="height:12px"></div>
     ${cats.length>1?`<div class="chips" style="padding-bottom:8px">${cats.map(c=>`<button class="pill ${c.id===cat.id?'acc':''}" data-cat="${c.id}">${esc(c.name)}</button>`).join('')}</div>`:''}
-    <div class="label">${esc(cat.name)}</div><div class="hrow">${its.map(i=>`<button class="av ${it&&it.id===i.id?'on':''}" data-item="${i.id}"><div class="c" style="background:${colorFor(i.id)}">${coverHTML(i.cover,i.name[0]||'?',i.coverCrop)}</div><div>${esc(i.name)}${draft.some(t=>t.item===i.id)?' ✓':''}</div></button>`).join('')||'<div class="note" style="padding:0">No items in this category yet.</div>'}</div>
-    ${it?`<div class="label" style="padding-top:14px">${esc(it.name)} · ${esc(cat.subLabel.toLowerCase())}</div><div class="hrow" style="gap:10px">${[{id:null,name:'No '+cat.subLabel.toLowerCase().replace(/s$/,'')},...it.subs].map(s=>{const on=draft.some(t=>t.item===it.id&&(t.sub||null)===s.id);return `<button class="sq ${on?'on':''}" data-sub="${s.id||''}"><div class="c">${s.id?coverHTML(s.cover,'',s.coverCrop):'<span style="color:var(--mut)">—</span>'}</div><div>${esc(s.name)}${on?' ✓':''}</div></button>`}).join('')}</div>`:''}
-    ${quickCats().map(c=>{const qs=sortedItems(c);return qs.length?`<div class="label" style="padding-top:14px">${esc(c.name)}</div><div class="chips" style="padding-bottom:0">${qs.map(i=>{const on=draft.some(t=>t.item===i.id);return `<button class="pill ${on?'acc':''}" data-quick="${i.id}">${esc(i.name)}${on?' ✓':''}</button>`}).join('')}</div>`:''}).join('')}
+    <div class="row-head"><div class="label" style="padding:0">${esc(cat.name)}</div><button class="link" data-newitem>+ New ${esc(cat.name.toLowerCase().replace(/s$/,''))}</button></div><div class="hrow">${its.map(i=>`<button class="av ${it&&it.id===i.id?'on':''}" data-item="${i.id}"><div class="c" style="background:${colorFor(i.id)}">${coverHTML(i.cover,i.name[0]||'?',i.coverCrop)}</div><div>${esc(i.name)}${draft.some(t=>t.item===i.id)?' ✓':''}</div></button>`).join('')||'<div class="note" style="padding:0">No items in this category yet.</div>'}</div>
+    ${it?`<div class="row-head" style="padding-top:14px"><div class="label" style="padding:0">${esc(it.name)} · ${esc(cat.subLabel.toLowerCase())}</div><button class="link" data-newsub>+ New ${esc(cat.subLabel.toLowerCase().replace(/s$/,''))}</button></div><div class="hrow" style="gap:10px">${[{id:null,name:'No '+cat.subLabel.toLowerCase().replace(/s$/,'')},...it.subs].map(s=>{const on=draft.some(t=>t.item===it.id&&(t.sub||null)===s.id);return `<button class="sq ${on?'on':''}" data-sub="${s.id||''}"><div class="c">${s.id?coverHTML(s.cover,'',s.coverCrop):'<span style="color:var(--mut)">—</span>'}</div><div>${esc(s.name)}${on?' ✓':''}</div></button>`}).join('')}</div>`:''}
+    ${quickCats().map(c=>{const qs=sortedItems(c);return `<div class="row-head" style="padding-top:14px"><div class="label" style="padding:0">${esc(c.name)}</div><button class="link" data-newquick="${c.id}">+ New</button></div><div class="chips" style="padding-bottom:0">${qs.map(i=>{const on=draft.some(t=>t.item===i.id);return `<button class="pill ${on?'acc':''}" data-quick="${i.id}">${esc(i.name)}${on?' ✓':''}</button>`}).join('')||'<span class="note" style="padding:0">None yet</span>'}</div>`}).join('')}
     <div style="padding:16px 20px 0"><button class="btn pri" style="width:100%" data-done>Apply</button></div>`;
     const B=$('#tagBody');
     B.querySelectorAll('[data-quick]').forEach(b=>b.onclick=()=>{const id=b.dataset.quick;const k=draft.findIndex(t=>t.item===id);if(k>=0)draft.splice(k,1);else draft.push({item:id,sub:null});paint()});
@@ -551,6 +553,9 @@ function tagSheet(title,initial,onDone){
     B.querySelectorAll('[data-item]').forEach(b=>b.onclick=()=>{const i=itemById(b.dataset.item);if(!i.subs.length){const k=draft.findIndex(t=>t.item===i.id);if(k>=0)draft.splice(k,1);else draft.push({item:i.id,sub:null});itemId=null}else itemId=i.id;paint()});
     B.querySelectorAll('[data-sub]').forEach(b=>b.onclick=()=>{const sub=b.dataset.sub||null;const k=draft.findIndex(t=>t.item===itemId&&(t.sub||null)===sub);if(k>=0)draft.splice(k,1);else addTag(draft,itemId,sub);paint()});
     B.querySelector('[data-done]').onclick=()=>{closeSheet();onDone(draft)};
+    B.querySelector('[data-newitem]').onclick=()=>{closeSheet();itemForm(cat,null,ni=>{if(ni.subs.length)itemId=ni.id;else{addTag(draft,ni.id,null);itemId=null}reopen()},()=>reopen())};
+    const ns=B.querySelector('[data-newsub]');if(ns)ns.onclick=()=>{closeSheet();subForm(it,null,sb=>{addTag(draft,it.id,sb.id);reopen()},()=>reopen())};
+    B.querySelectorAll('[data-newquick]').forEach(b=>b.onclick=()=>{closeSheet();itemForm(catById(b.dataset.newquick),null,ni=>{addTag(draft,ni.id,null);reopen()},()=>reopen())});
   };
   sheet(title,'<div id="tagBody"></div>',paint);
 }
@@ -672,7 +677,7 @@ const actions={
   wipe:async()=>{if(!confirm('Delete every photo, character and tag in this app? Export a backup first if you want to keep them.'))return;if(!confirm('Really delete everything?'))return;await DB.clear('photos');await DB.clear('blobs');await DB.clear('items');await DB.clear('cats');S.photos=[];S.items=[];S.cats=[];await seed();go('gallery')},
 };
 function newItemSheet(catId,after){const cat=catById(catId);itemForm(cat,null,after)}
-function itemForm(cat,it,after){
+function itemForm(cat,it,after,onCancel){
   const g=groupCatOf(cat);const one=cat.name.toLowerCase().replace(/s$/,'');
   const fields=[{name:'name',label:'Name',value:it?it.name:'',required:true,ph:cat.name.replace(/s$/,'')+' name'}];
   if(g){const gone=g.name.replace(/s$/,'');fields.push({name:'groupId',label:gone,type:'select',value:it?(it.groupId||''):'',options:[{v:'',l:'None'},...sortedItems(g).map(x=>({v:x.id,l:x.name})),{v:'__new',l:'+ New '+gone.toLowerCase()+'…'}]});fields.push({name:'groupNew',label:'New '+gone.toLowerCase()+' name',value:'',ph:gone+' name',showIf:'groupId=__new'})}
@@ -685,7 +690,7 @@ function itemForm(cat,it,after){
       if(groupId)for(const p of S.photos)if(p.tags.some(t=>t.item===it.id)&&!p.tags.some(t=>t.item===groupId))await savePhoto(p)}
     else{const n={id:uid(),cat:cat.id,name:v.name,groupId,cover:null,subs:[],order:itemsOf(cat.id).length,added:Date.now()};await saveItem(n);S.items.push(n);it=n}
     render();after&&after(it);
-  },it?()=>deleteItem(it):null);
+  },it?()=>deleteItem(it):null,onCancel);
 }
 async function deleteItem(it){
   const cat=catById(it.cat);const children=S.items.filter(x=>x.groupId===it.id);
@@ -696,12 +701,12 @@ async function deleteItem(it){
   for(const id of ids)await DB.del('items',id);S.items=S.items.filter(i=>!ids.has(i.id));
   if(S.view==='item'&&ids.has(S.itemId))actions.back();else render();
 }
-function subForm(it,sub,after){
+function subForm(it,sub,after,onCancel){
   const cat=catById(it.cat);const one=cat.subLabel.replace(/s$/,'');
   formSheet(sub?'Edit '+one.toLowerCase():'New '+one.toLowerCase()+' for '+it.name,[{name:'name',label:'Name',value:sub?sub.name:'',required:true,ph:one+' name'}],async v=>{
     if(sub)sub.name=v.name;else{sub={id:uid(),name:v.name,cover:null};it.subs.push(sub)}
     await saveItem(it);render();after&&after(sub);
-  },sub?async()=>{if(!confirm(`Delete ${sub.name}? Photos keep the ${it.name} tag.`))return;for(const p of S.photos){let ch=false;p.tags.forEach(t=>{if(t.item===it.id&&t.sub===sub.id){t.sub=null;ch=true}});if(ch)await savePhoto(p)}it.subs=it.subs.filter(s=>s.id!==sub.id);await saveItem(it);S.subId=null;render()}:null);
+  },sub?async()=>{if(!confirm(`Delete ${sub.name}? Photos keep the ${it.name} tag.`))return;for(const p of S.photos){let ch=false;p.tags.forEach(t=>{if(t.item===it.id&&t.sub===sub.id){t.sub=null;ch=true}});if(ch)await savePhoto(p)}it.subs=it.subs.filter(s=>s.id!==sub.id);await saveItem(it);S.subId=null;render()}:null,onCancel);
 }
 function catForm(c){
   formSheet(c?'Edit category':'New category',[{name:'name',label:'Name',value:c?c.name:'',required:true,ph:'Characters, Shows, Artists…'},{name:'subLabel',label:'Sub-bucket name',value:c?c.subLabel:'',ph:'Outfits, Seasons, Styles…',required:true},{name:'groupCat',label:'Each item belongs to a… (optional)',type:'select',value:c?(c.groupCat||''):'',options:[{v:'',l:'Nothing'},...S.cats.filter(x=>!x.quick&&(!c||x.id!==c.id)).map(x=>({v:x.id,l:x.name.replace(/s$/,'')+' (from '+x.name+')'}))]},{name:'quick',label:'Show in Sort as',type:'select',value:c&&c.quick?'1':'0',options:[{v:'0',l:'Scrollable row with sub-buckets (characters, shows)'},{v:'1',l:'Quick toggles, always visible (type, rating, style)'}]}],async v=>{
