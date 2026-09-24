@@ -240,7 +240,8 @@ async function migrateGroups(){
   }
 }
 /* ---------- image processing ---------- */
-function loadImage(blob){return new Promise((res,rej)=>{const u=URL.createObjectURL(blob);const im=new Image();im.onload=()=>{URL.revokeObjectURL(u);res(im)};im.onerror=()=>{URL.revokeObjectURL(u);rej(new Error('Not an image'))};im.src=u})}
+const fresh=async blob=>new Blob([await blob.arrayBuffer()],{type:blob.type||'image/jpeg'});
+function loadImage(blob,retry=true){return new Promise((res,rej)=>{const u=URL.createObjectURL(blob);const im=new Image();im.onload=()=>{URL.revokeObjectURL(u);res(im)};im.onerror=async()=>{URL.revokeObjectURL(u);if(!retry){rej(new Error('Not an image'));return}try{res(await loadImage(await fresh(blob),false))}catch(e){rej(e)}};im.src=u})}
 function draw(im,max){const s=Math.min(1,max/Math.max(im.naturalWidth,im.naturalHeight));const c=document.createElement('canvas');c.width=Math.round(im.naturalWidth*s);c.height=Math.round(im.naturalHeight*s);c.getContext('2d').drawImage(im,0,0,c.width,c.height);return c}
 const toBlob=(c,q)=>new Promise(r=>c.toBlob(r,'image/jpeg',q));
 function dhash(im){const c=document.createElement('canvas');c.width=9;c.height=8;const x=c.getContext('2d');x.drawImage(im,0,0,9,8);const d=x.getImageData(0,0,9,8).data;let bits='';for(let y=0;y<8;y++){for(let i=0;i<8;i++){const a=(y*9+i)*4,b=a+4;const la=d[a]*.299+d[a+1]*.587+d[a+2]*.114,lb=d[b]*.299+d[b+1]*.587+d[b+2]*.114;bits+=la>lb?'1':'0'}}return bits}
@@ -310,14 +311,14 @@ function bind(){
 
 /* ---------- shared bits ---------- */
 function dotsFor(p){return photoItems(p).map(i=>`<span class="dot" style="background:${colorFor(i.id)}"></span>`).join('')+(p.fav?I.starS:'')}
-function tileHTML(p,sel){return `<button class="tile ${sel?'sel':''}" data-act="tile" data-id="${p.id}"><div class="img"><img src="${thumbUrl(p)}" alt="" loading="lazy">${S.select?`<div class="chk">${sel?I.check:''}</div>`:''}</div><div class="ind">${dotsFor(p)}</div></button>`}
+function tileHTML(p,sel){return `<button class="tile ${sel?'sel':''}" data-act="tile" data-id="${p.id}"><div class="img"><img src="${thumbUrl(p)}" alt="" loading="lazy" data-p="${p.id}" data-k="t">${S.select?`<div class="chk">${sel?I.check:''}</div>`:''}</div><div class="ind">${dotsFor(p)}</div></button>`}
 function monthGrid(photos,selSet){
   if(!photos.length)return '';
   const groups=new Map();
   for(const p of photos){const d=new Date(p.added);const k=d.toLocaleString(undefined,{month:'long',year:'numeric'});if(!groups.has(k))groups.set(k,[]);groups.get(k).push(p)}
   return [...groups].map(([k,ps])=>`<div class="month">${esc(k)}</div><div class="grid3">${ps.map(p=>tileHTML(p,selSet&&selSet.has(p.id))).join('')}</div>`).join('');
 }
-function coverHTML(id,fallbackText,color){const p=photoById(id);return p?`<img src="${thumbUrl(p)}" alt="">`:`<span style="color:#111114">${esc(fallbackText)}</span>`}
+function coverHTML(id,fallbackText,color){const p=photoById(id);return p?`<img src="${thumbUrl(p)}" alt="" data-p="${p.id}" data-k="t">`:`<span style="color:#111114">${esc(fallbackText)}</span>`}
 
 /* ---------- Gallery ---------- */
 function gallery(){
@@ -402,7 +403,7 @@ function sortView(){
   const itemRow=`<div class="row-head"><div class="label" style="padding:0">${esc(cat.name)}</div><button class="link" data-act="newItemSort">+ New</button></div><div class="hrow">${its.map(i=>{const on=it&&it.id===i.id;const tagged=S.draft.some(t=>t.item===i.id);return `<button class="av ${on?'on':''}" data-act="sortItem" data-id="${i.id}"><div class="c" style="background:${colorFor(i.id)}">${coverHTML(i.cover,i.name[0]||'?')}</div><div>${esc(i.name)}${tagged?' ✓':''}</div></button>`}).join('')||'<div class="note" style="padding:0">No items yet — tap + New.</div>'}</div>`;
   const subRow=it?`<div class="row-head" style="padding-top:14px"><div class="label" style="padding:0">${esc(it.name)} · ${esc(cat.subLabel.toLowerCase())}</div><button class="link" data-act="newSubSort">+ New</button></div><div class="hrow" style="gap:10px">${[{id:null,name:'No '+cat.subLabel.toLowerCase().replace(/s$/,'')},...it.subs].map(s=>{const on=S.draft.some(t=>t.item===it.id&&(t.sub||null)===s.id);return `<button class="sq ${on?'on':''}" data-act="sortSub" data-id="${s.id||''}"><div class="c">${s.id?coverHTML(s.cover,''):'<span style="color:var(--mut)">—</span>'}</div><div>${esc(s.name)}${on?' ✓':''}</div></button>`}).join('')}</div>`:'';
   const tags=`<div class="tags">${S.draft.map((t,i)=>{const l=tagLabel(t);const c=colorFor(t.item);return l?`<button class="tag" data-act="draftRm" data-i="${i}"><span class="dot" style="background:${c}"></span>${esc(l)}<span class="x">${I.x.replace(/18/g,'10')}</span></button>`:''}).join('')||'<span style="font-size:12px;font-weight:600;color:var(--mut);align-self:center">No tags yet — pick below</span>'}</div>`;
-  return `<div class="screen">${head}${chips}<div class="scroll" style="padding-bottom:8px"><button class="stage" style="height:38vh;width:calc(100% - 40px)" data-act="openCur" aria-label="Open photo"><img src="${fullUrl(p)}" alt=""></button><div style="text-align:center;font-size:12px;font-weight:600;color:var(--mut);padding-top:8px">${esc(p.name)}</div>${tags}<div style="height:12px"></div>${catRow}${itemRow}${subRow}${quickRows(S.draft,'sortQuick')}</div>
+  return `<div class="screen">${head}${chips}<div class="scroll" style="padding-bottom:8px"><button class="stage" style="height:38vh;width:calc(100% - 40px)" data-act="openCur" aria-label="Open photo"><img src="${fullUrl(p)}" alt="" data-p="${p.id}" data-k="f"></button><div style="text-align:center;font-size:12px;font-weight:600;color:var(--mut);padding-top:8px">${esc(p.name)}</div>${tags}<div style="height:12px"></div>${catRow}${itemRow}${subRow}${quickRows(S.draft,'sortQuick')}</div>
   <div class="bar"><button class="btn" data-act="skip">Skip</button><button class="btn pri" data-act="saveNext">Save &amp; next</button></div></div>`;
 }
 function addTag(arr,itemId,subId){if(arr.some(t=>t.item===itemId&&(t.sub||null)===(subId||null)))return;if(!subId&&arr.some(t=>t.item===itemId))return;if(subId){const k=arr.findIndex(t=>t.item===itemId&&!t.sub);if(k>=0)arr.splice(k,1)}arr.push({item:itemId,sub:subId||null})}
@@ -431,7 +432,7 @@ function shuffleView(){
   const chip=(k,l)=>`<button class="pill ${S.shufFilter===k?'on':''}" data-act="shufFilter" data-k="${k}">${esc(l)}</button>`;
   return `<div class="screen"><div class="head"><button class="icon-btn" data-act="back" aria-label="Close">${I.x}</button><div style="font-size:18px;font-weight:800">Shuffle</div><div style="width:44px"></div></div>
   <div class="chips">${chip('all','Everything')}${chip('fav','Favorites')}${its.map(i=>chip(i.id,i.name)).join('')}</div>
-  <div class="scroll" style="display:flex;flex-direction:column">${p?`<div class="stage" style="flex:1;min-height:0;height:52vh"><img src="${fullUrl(p)}" alt=""></div><div class="tags">${p.tags.map(t=>{const l=tagLabel(t);return l?`<span class="tag"><span class="dot" style="background:${colorFor(t.item)}"></span>${esc(l)}</span>`:''}).join('')}</div>`:'<div class="empty">Nothing to show for this filter.</div>'}</div>
+  <div class="scroll" style="display:flex;flex-direction:column">${p?`<div class="stage" style="flex:1;min-height:0;height:52vh"><img src="${fullUrl(p)}" alt="" data-p="${p.id}" data-k="f"></div><div class="tags">${p.tags.map(t=>{const l=tagLabel(t);return l?`<span class="tag"><span class="dot" style="background:${colorFor(t.item)}"></span>${esc(l)}</span>`:''}).join('')}</div>`:'<div class="empty">Nothing to show for this filter.</div>'}</div>
   <div class="bar"><button class="btn" style="flex:0 0 52px;padding:0" data-act="shufFav" aria-label="Favorite" ${p?'':'disabled'}>${p&&p.fav?I.starF:I.star}</button><button class="btn" style="flex:0 0 52px;padding:0" data-act="shufOpen" aria-label="Open" ${p?'':'disabled'}>${I.tagI}</button><button class="btn pri" data-act="shufNext">${I.shuffle}Another</button></div></div>`;
 }
 
@@ -479,7 +480,7 @@ function dupesView(){
   const pairs=S.dupePairs||(S.dupePairs=findDupes().filter(x=>!(S.notDupes||new Set()).has(x.keep.id+'|'+x.rm.id)));
   return `<div class="screen"><div class="head" style="justify-content:flex-start;gap:12px"><button class="icon-btn" data-act="back" aria-label="Back">${I.back}</button><h1 class="title sm">Duplicates</h1></div>
   <div class="scroll"><div class="note" style="padding-top:0;padding-bottom:14px">Compared by image hash. ${pairs.length} pair${pairs.length===1?'':'s'} found in ${S.photos.length} photos. Tags and favorites on the removed copy move to the kept one.</div>
-  ${pairs.length?pairs.map((x,i)=>`<div style="margin:0 20px 12px;padding:14px;border-radius:16px;background:var(--sur);display:flex;flex-direction:column;gap:10px"><div style="display:flex;gap:10px"><div style="flex:1"><div style="aspect-ratio:1;border-radius:10px;overflow:hidden;outline:3px solid var(--acc);outline-offset:-3px"><img src="${thumbUrl(x.keep)}" style="width:100%;height:100%;object-fit:cover" alt=""></div><div style="font-size:11px;font-weight:700;padding-top:6px">Keep · ${(x.keep.full.size/1048576).toFixed(1)} MB</div></div><div style="flex:1"><div style="aspect-ratio:1;border-radius:10px;overflow:hidden"><img src="${thumbUrl(x.rm)}" style="width:100%;height:100%;object-fit:cover" alt=""></div><div style="font-size:11px;font-weight:600;color:var(--mut);padding-top:6px">Remove · ${(x.rm.full.size/1048576).toFixed(1)} MB</div></div></div><div style="display:flex;align-items:center;justify-content:space-between"><div style="font-size:12px;font-weight:600;color:var(--mut)">${x.d===0?'Exact match':'Near match'}</div><div style="display:flex;gap:6px"><button class="pill" data-act="dupeSwap" data-i="${i}">Swap</button><button class="pill" data-act="dupeNot" data-i="${i}">Not a dupe</button><button class="pill acc" data-act="dupeRemove" data-i="${i}">Remove</button></div></div></div>`).join(''):'<div class="empty">No duplicates found.</div>'}</div>
+  ${pairs.length?pairs.map((x,i)=>`<div style="margin:0 20px 12px;padding:14px;border-radius:16px;background:var(--sur);display:flex;flex-direction:column;gap:10px"><div style="display:flex;gap:10px"><div style="flex:1"><div style="aspect-ratio:1;border-radius:10px;overflow:hidden;outline:3px solid var(--acc);outline-offset:-3px"><img src="${thumbUrl(x.keep)}" style="width:100%;height:100%;object-fit:cover" alt="" data-p="${x.keep.id}" data-k="t"></div><div style="font-size:11px;font-weight:700;padding-top:6px">Keep · ${(x.keep.full.size/1048576).toFixed(1)} MB</div></div><div style="flex:1"><div style="aspect-ratio:1;border-radius:10px;overflow:hidden"><img src="${thumbUrl(x.rm)}" style="width:100%;height:100%;object-fit:cover" alt="" data-p="${x.rm.id}" data-k="t"></div><div style="font-size:11px;font-weight:600;color:var(--mut);padding-top:6px">Remove · ${(x.rm.full.size/1048576).toFixed(1)} MB</div></div></div><div style="display:flex;align-items:center;justify-content:space-between"><div style="font-size:12px;font-weight:600;color:var(--mut)">${x.d===0?'Exact match':'Near match'}</div><div style="display:flex;gap:6px"><button class="pill" data-act="dupeSwap" data-i="${i}">Swap</button><button class="pill" data-act="dupeNot" data-i="${i}">Not a dupe</button><button class="pill acc" data-act="dupeRemove" data-i="${i}">Remove</button></div></div></div>`).join(''):'<div class="empty">No duplicates found.</div>'}</div>
   <div class="bar"><button class="btn pri" data-act="dupeAll" ${pairs.length?'':'disabled'}>Remove all ${pairs.length}</button></div></div>`;
 }
 async function mergeRemove(keep,rm){
@@ -532,7 +533,7 @@ function tagSheet(title,initial,onDone){
 function openViewer(id){
   const p=photoById(id);if(!p)return;
   const paint=()=>{const p=photoById(id);if(!p){closeSheet();return}
-   $('#layer').innerHTML=`<div class="viewer"><div class="vh"><button class="icon-btn" data-v="close" aria-label="Close">${I.x}</button><button class="icon-btn" data-v="fav" aria-label="Favorite">${p.fav?I.starF:I.star}</button></div><div class="vi" id="zoomArea"><img src="${fullUrl(p)}" alt="" id="zoomImg" style="touch-action:none;will-change:transform"></div>
+   $('#layer').innerHTML=`<div class="viewer"><div class="vh"><button class="icon-btn" data-v="close" aria-label="Close">${I.x}</button><button class="icon-btn" data-v="fav" aria-label="Favorite">${p.fav?I.starF:I.star}</button></div><div class="vi" id="zoomArea"><img src="${fullUrl(p)}" alt="" id="zoomImg" data-p="${p.id}" data-k="f" style="touch-action:none;will-change:transform" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'empty',textContent:'This photo could not be loaded. Tap Revert if it is available, otherwise re-import it.'}))"></div>
    <div class="vf"><div class="tags" style="padding-top:4px">${p.tags.map(t=>{const l=tagLabel(t);return l?`<span class="tag"><span class="dot" style="background:${colorFor(t.item)}"></span>${esc(l)}</span>`:''}).join('')||'<span style="font-size:12px;font-weight:600;color:var(--mut)">No tags</span>'}</div><div style="text-align:center;font-size:11px;font-weight:600;color:var(--mut);padding:4px 0 8px">${esc(p.name)} · ${new Date(p.added).toLocaleDateString()}</div>
    <div class="bar" style="padding-bottom:4px;background:none"><button class="btn sm" data-v="tags">${I.tagI}Tags</button><button class="btn sm" data-v="edit">${I.edit.replace(/18/g,"16")}Edit</button>${p.orig?`<button class="btn sm" data-v="revert">Revert</button>`:""}<button class="btn sm" data-v="cover" ${p.tags.length?'':'disabled'}>Set as cover</button><button class="btn sm danger" data-v="del" aria-label="Delete">${I.trash}</button></div></div></div>`;
    const L=$('#layer');
@@ -540,7 +541,7 @@ function openViewer(id){
    L.querySelector('[data-v="fav"]').onclick=async()=>{p.fav=!p.fav;await savePhoto(p);paint()};
    attachZoom($('#zoomArea'),$('#zoomImg'));
    L.querySelector('[data-v="edit"]').onclick=()=>openEditor(p,paint);
-   const rv=L.querySelector('[data-v="revert"]');if(rv)rv.onclick=async()=>{if(!confirm('Restore the original photo as imported? Tags stay.'))return;const o=p.orig;const im=await loadImage(o.full);const thumb=await toBlob(draw(im,320),.8);Object.assign(p,{full:o.full,thumb,w:o.w,h:o.h,hash:o.hash});delete p.orig;['t','f'].forEach(k=>{if(urls[k+p.id]){URL.revokeObjectURL(urls[k+p.id]);delete urls[k+p.id]}});await savePhoto(p);toast('Original restored');paint()};
+   const rv=L.querySelector('[data-v="revert"]');if(rv)rv.onclick=async()=>{if(!confirm('Restore the original photo as imported? Tags stay.'))return;const o=p.orig;let full;try{const buf=o.buf||await o.full.arrayBuffer();if(!buf||!buf.byteLength)throw 0;full=new Blob([buf],{type:'image/jpeg'});const im=await loadImage(full);const thumb=await toBlob(draw(im,320),.8);Object.assign(p,{full,thumb,w:o.w,h:o.h,hash:o.hash})}catch(e){toast('Original could not be read on this device');return}delete p.orig;['t','f'].forEach(k=>{if(urls[k+p.id]){URL.revokeObjectURL(urls[k+p.id]);delete urls[k+p.id]}});await savePhoto(p);toast('Original restored');paint()};
    L.querySelector('[data-v="tags"]').onclick=()=>tagSheet('Tags',p.tags,async d=>{p.tags=d;await savePhoto(p);paint()});
    L.querySelector('[data-v="cover"]').onclick=()=>{
      const opts=[];for(const t of p.tags){const it=itemById(t.item);if(!it)continue;if(!opts.some(o=>o.k==='i'+it.id))opts.push({k:'i'+it.id,l:it.name+' (character cover)',fn:async()=>{it.cover=p.id;await saveItem(it)}});const sb=subOf(it,t.sub);if(sb)opts.push({k:'s'+sb.id,l:it.name+' · '+sb.name,fn:async()=>{sb.cover=p.id;await saveItem(it)}})}
@@ -556,7 +557,7 @@ function dataJSON(){return {version:1,exported:new Date().toISOString(),cats:S.c
 async function buildZip(photos,withData){
   const z=new JSZip();if(withData)z.file('data.json',JSON.stringify(dataJSON(),null,1));
   const f=z.folder('photos');for(const p of photos)f.file(p.id+'.jpg',p.full);
-  if(withData){const o=z.folder('originals');for(const p of photos)if(p.orig)o.file(p.id+'.jpg',p.orig.full)}
+  if(withData){const o=z.folder('originals');for(const p of photos)if(p.orig&&(p.orig.buf||p.orig.full))o.file(p.id+'.jpg',p.orig.buf||p.orig.full)}
   return z.generateAsync({type:'blob',compression:'STORE'});
 }
 async function shareOrDownload(blob,name){
@@ -572,7 +573,7 @@ async function importZip(file){
     const d=JSON.parse(await dj.async('string'));let n=0,t=d.photos.length;
     for(const c of d.cats)if(!catById(c.id)){await saveCat(c);S.cats.push(c)}
     for(const i of d.items){const ex=itemById(i.id);if(!ex){await saveItem(i);S.items.push(i)}}
-    for(const q of d.photos){showProgress(++n,t);if(photoById(q.id))continue;const zf=z.file(q.file);if(!zf)continue;const full=await zf.async('blob');const im=await loadImage(full);const thumb=await toBlob(draw(im,320),.8);const p={...q,full:new Blob([full],{type:'image/jpeg'}),thumb};delete p.file;if(q.orig){const of=z.file(q.orig.file);p.orig=of?{w:q.orig.w,h:q.orig.h,hash:q.orig.hash,full:new Blob([await of.async('blob')],{type:'image/jpeg'})}:null;if(!p.orig)delete p.orig}await DB.put('photos',p);S.photos.push(p)}
+    for(const q of d.photos){showProgress(++n,t);if(photoById(q.id))continue;const zf=z.file(q.file);if(!zf)continue;const full=await zf.async('blob');const im=await loadImage(full);const thumb=await toBlob(draw(im,320),.8);const p={...q,full:new Blob([full],{type:'image/jpeg'}),thumb};delete p.file;if(q.orig){const of=z.file(q.orig.file);p.orig=of?{w:q.orig.w,h:q.orig.h,hash:q.orig.hash,buf:await of.async('arraybuffer')}:null;if(!p.orig)delete p.orig}await DB.put('photos',p);S.photos.push(p)}
     S.photos.sort(byNewest);hideProgress();toast('Backup imported');render();
   }catch(e){hideProgress();toast('Could not read that file')}
 }
@@ -679,6 +680,20 @@ function catForm(c){
 }
 async function moveItem(id,dir){const it=itemById(id);const its=sortedItems(catById(it.cat));const i=its.indexOf(it),j=i+dir;if(j<0||j>=its.length)return;its.forEach((x,k)=>x.order=k);[its[i].order,its[j].order]=[its[j].order,its[i].order];await DB.putMany('items',its);render()}
 
+/* ---------- self-healing images ---------- */
+// Safari can invalidate Blobs read from IndexedDB once their transaction closes; on a failed
+// load, re-read the photo, rebuild the blob from bytes, and swap the URL in.
+document.addEventListener('error',async e=>{
+  const img=e.target;if(!(img instanceof HTMLImageElement)||!img.dataset.p)return;
+  const id=img.dataset.p,k=img.dataset.k,tries=+(img.dataset.retry||0);if(tries>=2)return;img.dataset.retry=tries+1;
+  try{
+    const rec=await DB.get('photos',id);if(!rec)return;const key=k==='f'?'full':'thumb';
+    const b=await fresh(rec[key]);const p=photoById(id);if(p)p[key]=b;
+    const uk=k+id;if(urls[uk]){URL.revokeObjectURL(urls[uk]);delete urls[uk]}urls[uk]=URL.createObjectURL(b);
+    img.src=urls[uk];
+  }catch(err){}
+},true);
+
 /* ---------- long-press to select ---------- */
 let lp;
 document.addEventListener('pointerdown',e=>{const t=e.target.closest('.tile');if(!t||S.select||S.view!=='gallery')return;lp=setTimeout(()=>{S.select=new Set([t.dataset.id]);render();navigator.vibrate&&navigator.vibrate(10)},450)});
@@ -704,7 +719,7 @@ function attachZoom(area,img){
 
 /* ---------- crop / rotate editor ---------- */
 async function openEditor(p,after){
-  const im=await loadImage(p.full);
+  p.full=await fresh(p.full);const im=await loadImage(p.full);
   let rot=0,ratio=null;let crop={x:0,y:0,w:1,h:1}; // fractions of the rotated image
   const L=$('#layer');
   L.innerHTML=`<div class="editor"><div class="eh"><button class="icon-btn" data-e="cancel" aria-label="Cancel">${I.x}</button><div style="font-size:16px;font-weight:800">Edit</div><button class="pill on" data-e="save">Save</button></div>
@@ -746,7 +761,8 @@ async function openEditor(p,after){
     const out=document.createElement('canvas');out.width=W;out.height=H;out.getContext('2d').drawImage(full,Math.round(crop.x*rw()),Math.round(crop.y*rh()),W,H,0,0,W,H);
     const blob=await toBlob(out,.9);const im2=await loadImage(blob);
     const fullB=await toBlob(draw2(im2,2000),.86),thumbB=await toBlob(draw2(im2,320),.8);
-    const orig=p.orig||{full:p.full,w:p.w,h:p.h,hash:p.hash};
+    let orig=p.orig||{buf:await p.full.arrayBuffer(),w:p.w,h:p.h,hash:p.hash};
+    if(orig.full&&!orig.buf){try{orig={buf:await orig.full.arrayBuffer(),w:orig.w,h:orig.h,hash:orig.hash}}catch(e){orig={buf:await p.full.arrayBuffer(),w:p.w,h:p.h,hash:p.hash}}}
     const target=asCopy?{...p,id:uid(),name:p.name.replace(/(\.\w+)?$/,' (edited)$1'),imported:Date.now(),tags:p.tags.map(t=>({...t}))}:p;
     target.orig=orig;
     Object.assign(target,{full:fullB,thumb:thumbB,w:im2.naturalWidth,h:im2.naturalHeight,hash:dhash(im2)});
