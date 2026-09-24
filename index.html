@@ -52,6 +52,8 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--acc);outline-offset
 .tile .img{position:relative;aspect-ratio:1;background:var(--sur2);border-radius:4px;overflow:hidden}
 .tile .img img{width:100%;height:100%;object-fit:cover;display:block}
 .tile .img img:not([src]){visibility:hidden}
+.badge{position:absolute;left:6px;bottom:6px;background:rgba(0,0,0,.65);color:#fff;font-size:10px;font-weight:800;padding:2px 6px;border-radius:8px;letter-spacing:.02em}
+.viewer video,.stage video{max-width:100%;max-height:100%;display:block;background:#000}
 .tile.sel .img{outline:3px solid var(--acc);outline-offset:-3px}
 .tile .ind{display:flex;gap:3px;align-items:center;height:12px}
 .dot{width:8px;height:8px;border-radius:4px;flex-shrink:0}
@@ -121,6 +123,7 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--acc);outline-offset
 .viewer .vi{flex:1;display:flex;align-items:center;justify-content:center;min-height:0}
 .viewer .vi img{max-width:100%;max-height:100%;object-fit:contain}
 .viewer .vf{padding:8px 0 calc(var(--sab) + 10px);background:rgba(17,17,20,.9)}
+.viewer.immersive .vh,.viewer.immersive .vf{display:none}
 .toast{position:fixed;left:50%;bottom:calc(var(--sab) + 90px);transform:translateX(-50%);background:var(--txt);color:#111114;padding:10px 12px 10px 16px;border-radius:14px;font-size:13px;font-weight:700;z-index:40;opacity:0;transition:opacity .2s;pointer-events:none;display:flex;align-items:center;gap:12px;max-width:calc(100% - 40px)}
 .toast.on{opacity:1;pointer-events:auto}
 .toast button{background:#111114;color:#fff;border-radius:10px;padding:6px 10px;font-weight:800;font-size:12px}
@@ -149,7 +152,7 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--acc);outline-offset
 <div id="app"></div>
 <div id="layer"></div>
 <div class="toast" id="toast"></div>
-<input type="file" id="picker" accept="image/*" multiple hidden>
+<input type="file" id="picker" accept="image/*,video/*" multiple hidden>
 <input type="file" id="zipPicker" accept=".zip,application/zip" hidden>
 <script>
 /* ---------- tiny helpers ---------- */
@@ -323,9 +326,9 @@ async function fullUrl(id){
 }
 function dropUrls(id){for(const M of [TC,FC]){const e=M.get(id);if(e){URL.revokeObjectURL(e.url);M.delete(id)}}}
 function hydrate(root){
-  (root||document).querySelectorAll('img[data-p]:not([src])').forEach(im=>{
+  (root||document).querySelectorAll('img[data-p]:not([src]),video[data-p]:not([src])').forEach(im=>{
     const id=im.dataset.p;if(im.dataset.k==='t'){const u=thumbUrl(id);if(u)im.src=u}
-    else fullUrl(id).then(u=>{if(u&&im.isConnected)im.src=u});
+    else fullUrl(id).then(u=>{if(u&&im.isConnected){im.src=u;if(im.tagName==='VIDEO'&&im.autoplay)im.play().catch(()=>{})}});
   });
 }
 document.addEventListener('error',async e=>{ // self-heal a broken blob URL once
@@ -337,10 +340,42 @@ document.addEventListener('error',async e=>{ // self-heal a broken blob URL once
 
 /* ---------- image processing ---------- */
 function loadImage(blob,retry=true){return new Promise((res,rej)=>{const u=URL.createObjectURL(blob);const im=new Image();im.onload=()=>{URL.revokeObjectURL(u);res(im)};im.onerror=async()=>{URL.revokeObjectURL(u);if(!retry){rej(new Error('Not an image'));return}try{res(await loadImage(await fresh(blob),false))}catch(e){rej(e)}};im.src=u})}
-function draw(im,max){const s=Math.min(1,max/Math.max(im.naturalWidth,im.naturalHeight));const c=document.createElement('canvas');c.width=Math.round(im.naturalWidth*s);c.height=Math.round(im.naturalHeight*s);c.getContext('2d').drawImage(im,0,0,c.width,c.height);return c}
+function draw(im,max){const iw=im.naturalWidth||im.videoWidth||im.width,ih=im.naturalHeight||im.videoHeight||im.height;const s=Math.min(1,max/Math.max(iw,ih));const c=document.createElement('canvas');c.width=Math.round(iw*s);c.height=Math.round(ih*s);c.getContext('2d').drawImage(im,0,0,c.width,c.height);return c}
 const toBlob=(c,q)=>new Promise(r=>c.toBlob(r,'image/jpeg',q));
 function dhash(im){const c=document.createElement('canvas');c.width=9;c.height=8;const x=c.getContext('2d');x.drawImage(im,0,0,9,8);const d=x.getImageData(0,0,9,8).data;let bits='';for(let y=0;y<8;y++){for(let i=0;i<8;i++){const a=(y*9+i)*4,b=a+4;const la=d[a]*.299+d[a+1]*.587+d[a+2]*.114,lb=d[b]*.299+d[b+1]*.587+d[b+2]*.114;bits+=la>lb?'1':'0'}}return bits}
 function hamming(a,b){let n=0;for(let i=0;i<64;i++)if(a[i]!==b[i])n++;return n}
+const isVideoFile=f=>f.type.startsWith('video/')||/\.(mp4|m4v|mov|webm)$/i.test(f.name);
+const isGifFile=f=>f.type==='image/gif'||/\.gif$/i.test(f.name);
+const extFor=p=>p.kind==='video'?(p.mime==='video/webm'?'.webm':'.mp4'):p.kind==='gif'?'.gif':'.jpg';
+const mimeForExt=n=>/\.webm$/i.test(n)?'video/webm':/\.(mp4|m4v|mov)$/i.test(n)?'video/mp4':/\.gif$/i.test(n)?'image/gif':'image/jpeg';
+const fmtDur=s=>{s=Math.round(s||0);return Math.floor(s/60)+':'+String(s%60).padStart(2,'0')};
+const MAX_VIDEO_SEC=60,VIDEO_BPS=1.5e6;
+function pickVideoMime(){if(!window.MediaRecorder)return null;for(const m of ['video/mp4;codecs=avc1','video/mp4','video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'])if(MediaRecorder.isTypeSupported(m))return m;return null}
+function videoMeta(file){return new Promise((res,rej)=>{const url=URL.createObjectURL(file);const v=document.createElement('video');v.preload='metadata';v.muted=true;v.playsInline=true;v.onloadedmetadata=()=>{const d=v.duration;URL.revokeObjectURL(url);res({dur:isFinite(d)?d:0,w:v.videoWidth,h:v.videoHeight})};v.onerror=()=>{URL.revokeObjectURL(url);rej(new Error('bad video'))};v.src=url})}
+// Re-encode a video through a canvas + MediaRecorder: 720p-class, ~1.5 Mbps, first MAX_VIDEO_SEC seconds.
+async function compressVideo(file,onProgress){
+  const mime=pickVideoMime();if(!mime)throw new Error('This browser cannot encode video');
+  const url=URL.createObjectURL(file);const v=document.createElement('video');v.src=url;v.muted=true;v.playsInline=true;v.preload='auto';v.setAttribute('playsinline','');
+  await new Promise((res,rej)=>{v.onloadedmetadata=res;v.onerror=()=>rej(new Error('bad video'))});
+  const dur=Math.min(v.duration,MAX_VIDEO_SEC);
+  const s=Math.min(1,1280/Math.max(v.videoWidth,v.videoHeight));const W=Math.round(v.videoWidth*s/2)*2||640,H=Math.round(v.videoHeight*s/2)*2||360;
+  const c=document.createElement('canvas');c.width=W;c.height=H;const ctx=c.getContext('2d');
+  v.currentTime=Math.min(0.5,dur/2);await new Promise(r=>{v.onseeked=r;setTimeout(r,1500)});ctx.drawImage(v,0,0,W,H);
+  const thumb=await toBlob(draw(c,320),.8);const hash=dhash(c);
+  const stream=c.captureStream?c.captureStream(30):null;if(!stream)throw new Error('This browser cannot encode video');
+  let ac=null;try{ac=new (window.AudioContext||window.webkitAudioContext)();await ac.resume();const src=ac.createMediaElementSource(v);const dest=ac.createMediaStreamDestination();src.connect(dest);dest.stream.getAudioTracks().forEach(t=>stream.addTrack(t));v.muted=false}catch(e){ac=null;v.muted=true}
+  const rec=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:VIDEO_BPS,audioBitsPerSecond:96e3});const chunks=[];rec.ondataavailable=e=>{if(e.data&&e.data.size)chunks.push(e.data)};
+  v.currentTime=0;await new Promise(r=>{v.onseeked=r;setTimeout(r,1500)});
+  let raf=0;const tick=()=>{try{ctx.drawImage(v,0,0,W,H)}catch(e){}if(!v.ended&&v.currentTime<dur&&!S.stopImport){onProgress&&onProgress(v.currentTime,dur);raf=requestAnimationFrame(tick)}};
+  rec.start(1000);
+  try{await v.play()}catch(e){v.muted=true;try{await v.play()}catch(e2){rec.stop();throw new Error('Could not play video')}}
+  tick();
+  await new Promise(res=>{const chk=()=>{if(v.ended||v.currentTime>=dur||S.stopImport)res();else setTimeout(chk,120)};chk()});
+  v.pause();cancelAnimationFrame(raf);
+  const blob=await new Promise(res=>{rec.onstop=()=>res(new Blob(chunks,{type:mime.split(';')[0]}));rec.stop()});
+  if(ac)try{ac.close()}catch(e){}URL.revokeObjectURL(url);v.removeAttribute('src');v.load();
+  return {blob,thumb,hash,dur,w:W,h:H,mime:mime.split(';')[0]};
+}
 async function exifDate(file){ // DateTimeOriginal from a JPEG's EXIF, or null
   try{
     const buf=await file.slice(0,256*1024).arrayBuffer();const v=new DataView(buf);if(v.getUint16(0)!==0xFFD8)return null;
@@ -388,8 +423,16 @@ function showProgress(n,t,label){let e=$('#prog');if(!e){e=document.createElemen
 function hideProgress(){const e=$('#prog');if(e)e.remove()}
 const srcKey=f=>`${f.name}|${f.size}`;
 async function importFiles(files){
-  const list=[...files].filter(f=>f.type.startsWith('image/')||/\.(jpe?g|png|webp|gif|heic|heif|avif)$/i.test(f.name));
-  if(!list.length){toast('No images selected');return}
+  const list=[...files].filter(f=>f.type.startsWith('image/')||isVideoFile(f)||/\.(jpe?g|png|webp|gif|heic|heif|avif)$/i.test(f.name));
+  if(!list.length){toast('No photos or videos selected');return}
+  const have0=new Set(S.photos.map(p=>p.src).filter(Boolean));
+  const vids=list.filter(f=>isVideoFile(f)&&!have0.has(srcKey(f)));
+  if(vids.length){
+    if(!pickVideoMime()){await ask('This browser cannot compress video, so videos will be skipped. Photos still import.',{ok:'OK',single:true})}
+    else{let secs=0;for(const f of vids){try{secs+=Math.min((await videoMeta(f)).dur,MAX_VIDEO_SEC)}catch(e){}}
+      const est=secs*(VIDEO_BPS+96e3)/8;
+      if(!await ask(`${vids.length} video${vids.length===1?'':'s'} will be compressed to 720p (about ${fmtMB(est)} total). Clips longer than ${MAX_VIDEO_SEC}s keep their first ${MAX_VIDEO_SEC}s. Encoding runs in real time, so keep the app open for roughly ${fmtDur(secs)}.`,{ok:'Compress & import'}))return}
+  }
   const have=new Set(S.photos.map(p=>p.src).filter(Boolean));
   const batch=uid();S.stopImport=false;
   let n=0,fail=0,skip=0;const added=[];let quota=false;
@@ -399,11 +442,22 @@ async function importFiles(files){
     n++;
     if(have.has(srcKey(f))){skip++;if(n%20===0)showProgress(n,list.length,'Importing');continue}
     try{
-      const im=await loadImage(f);
-      const full=await toBlob(draw(im,2000),.86);
-      const thumb=await toBlob(draw(im,320),.8);
-      const shot=/jpe?g$/i.test(f.name)||f.type==='image/jpeg'?await exifDate(f):null;
-      const p={id:uid(),name:f.name,added:shot||f.lastModified||Date.now(),imported:Date.now(),batch,src:srcKey(f),w:im.naturalWidth,h:im.naturalHeight,hash:dhash(im),fav:false,tags:[],hasOrig:false};
+      let full,thumb,p;
+      if(isVideoFile(f)){
+        if(!pickVideoMime()){fail++;continue}
+        const r=await compressVideo(f,(t,d)=>showProgress(n,list.length,`Compressing video · ${fmtDur(t)} / ${fmtDur(d)}`));
+        if(S.stopImport)break;
+        full=r.blob;thumb=r.thumb;
+        p={id:uid(),name:f.name,added:f.lastModified||Date.now(),imported:Date.now(),batch,src:srcKey(f),w:r.w,h:r.h,hash:r.hash,fav:false,tags:[],hasOrig:false,kind:'video',mime:r.mime,dur:r.dur,bytes:full.size};
+      }else{
+        const im=await loadImage(f);
+        const gif=isGifFile(f);
+        full=gif?new Blob([await f.arrayBuffer()],{type:'image/gif'}):await toBlob(draw(im,2000),.86);
+        thumb=await toBlob(draw(im,320),.8);
+        const shot=/jpe?g$/i.test(f.name)||f.type==='image/jpeg'?await exifDate(f):null;
+        p={id:uid(),name:f.name,added:shot||f.lastModified||Date.now(),imported:Date.now(),batch,src:srcKey(f),w:im.naturalWidth,h:im.naturalHeight,hash:dhash(im),fav:false,tags:[],hasOrig:false,bytes:full.size};
+        if(gif)p.kind='gif';
+      }
       try{await saveImages(p,full,thumb,null);await savePhoto(p)}catch(e){if(isQuota(e)){quota=true;try{await DB.del('blobs',p.id);await DB.del('thumbs',p.id);await DB.del('photos',p.id)}catch(_){}break}throw e}
       S.photos.push(p);photoMap.set(p.id,p);added.push(p);have.add(p.src);
     }catch(e){fail++}
@@ -418,10 +472,10 @@ async function importFiles(files){
   render();
 }
 async function importImageZip(z){
-  const entries=Object.values(z.files).filter(f=>!f.dir&&/\.(jpe?g|png|webp|gif|heic|heif|avif)$/i.test(f.name)&&!/__MACOSX|\/\./.test(f.name));
+  const entries=Object.values(z.files).filter(f=>!f.dir&&/\.(jpe?g|png|webp|gif|heic|heif|avif|mp4|m4v|mov|webm)$/i.test(f.name)&&!/__MACOSX|\/\./.test(f.name));
   if(!entries.length){toast('No images in that zip');return}
   const files=[];showProgress(0,entries.length,'Reading zip');let n=0;
-  for(const e of entries){const b=await e.async('blob');const nm=e.name.split('/').pop();files.push(new File([b],nm,{type:'image/jpeg',lastModified:e.date?e.date.getTime():Date.now()}));if(++n%20===0){showProgress(n,entries.length,'Reading zip');await sleep(0)}}
+  for(const e of entries){const b=await e.async('blob');const nm=e.name.split('/').pop();files.push(new File([b],nm,{type:mimeForExt(nm),lastModified:e.date?e.date.getTime():Date.now()}));if(++n%20===0){showProgress(n,entries.length,'Reading zip');await sleep(0)}}
   hideProgress();await importFiles(files);
 }
 
@@ -443,8 +497,9 @@ function render(reset){
   const prev=$('#app .scroll');const keep=!reset&&prev?prev.scrollTop:0;
   $('#app').innerHTML=(V[S.view]||gallery)();
   bind();
-  const sc=$('#app .scroll');if(sc&&keep)sc.scrollTop=keep;
-  mountGrids();hydrate($('#app'));
+  mountGrids();
+  const sc=$('#app .scroll');if(sc&&keep){sc.scrollTop=keep;repaintGrids()}
+  hydrate($('#app'));
   const q=$('#q');if(q)q.oninput=()=>{S.q=q.value;const r=$('#sres');r.innerHTML=searchResults();r.scrollTop=0;bind();mountGrids();hydrate(r)};
   const st=$('#sortStage');if(st)attachSwipe(st,d=>{if(d>0)actions.skip();else actions.prev()});
 }
@@ -495,7 +550,7 @@ function repaintGrids(){for(const k in grids){const g=grids[k];if(g.el&&g.el.isC
 
 /* ---------- shared bits ---------- */
 function dotsFor(p){return photoItems(p).map(i=>`<span class="dot" style="background:${colorFor(i.id)}"></span>`).join('')+(p.fav?I.starS:'')}
-function tileHTML(p,sel){return `<button class="tile ${sel?'sel':''}" data-act="tile" data-id="${p.id}"><div class="img"><img alt="" data-p="${p.id}" data-k="t">${S.select?`<div class="chk">${sel?I.check:''}</div>`:''}</div><div class="ind">${dotsFor(p)}</div></button>`}
+function tileHTML(p,sel){return `<button class="tile ${sel?'sel':''}" data-act="tile" data-id="${p.id}"><div class="img"><img alt="" data-p="${p.id}" data-k="t">${p.kind==='video'?`<span class="badge">▶ ${fmtDur(p.dur)}</span>`:p.kind==='gif'?'<span class="badge">GIF</span>':''}${S.select?`<div class="chk">${sel?I.check:''}</div>`:''}</div><div class="ind">${dotsFor(p)}</div></button>`}
 function coverImg(id,crop){
   if(crop&&crop.w>0&&crop.h>0)return `<span style="position:absolute;inset:0;overflow:hidden"><img alt="" data-p="${id}" data-k="t" style="position:absolute;left:${(-crop.x/crop.w*100).toFixed(3)}%;top:${(-crop.y/crop.h*100).toFixed(3)}%;width:${(100/crop.w).toFixed(3)}%;height:${(100/crop.h).toFixed(3)}%;object-fit:fill"></span>`;
   return `<img alt="" data-p="${id}" data-k="t">`;
@@ -578,7 +633,7 @@ function itemCard(i,cat){
 }
 function reorderSheet(cat){
   const its=sortedItems(cat);
-  sheet('Reorder '+esc(cat.name.toLowerCase()),`<div class="note" style="padding-top:0;padding-bottom:10px">Drag the handle to move an item.</div><div id="dl" style="margin:0 20px;border-radius:16px;overflow:hidden">${its.map(i=>`<div class="drag-li" data-id="${i.id}"><span class="handle">${I.grip}</span><div style="width:32px;height:32px;border-radius:16px;background:${colorFor(i.id)};overflow:hidden;position:relative;flex-shrink:0">${coverHTML(i.cover,'',i.coverCrop)}</div><div style="flex:1;font-weight:700">${esc(i.name)}</div></div>`).join('')}</div><div style="padding:16px 20px 0"><button class="btn pri" style="width:100%" data-done>Done</button></div>`,el=>{
+  sheet('Reorder '+esc(cat.name.toLowerCase()),`<div id="dl" style="margin:0 20px;border-radius:16px;overflow:hidden">${its.map(i=>`<div class="drag-li" data-id="${i.id}"><span class="handle">${I.grip}</span><div style="width:32px;height:32px;border-radius:16px;background:${colorFor(i.id)};overflow:hidden;position:relative;flex-shrink:0">${coverHTML(i.cover,'',i.coverCrop)}</div><div style="flex:1;font-weight:700">${esc(i.name)}</div></div>`).join('')}</div><div style="padding:16px 20px 0"><button class="btn pri" style="width:100%" data-done>Done</button></div>`,el=>{
     const L=el.querySelector('#dl');let drag=null;
     L.addEventListener('pointerdown',e=>{const h=e.target.closest('.handle');if(!h)return;const li=h.closest('.drag-li');li.setPointerCapture(e.pointerId);li.classList.add('moving');drag={li,y:e.clientY,h:li.offsetHeight};e.preventDefault()});
     L.addEventListener('pointermove',e=>{if(!drag)return;const dy=e.clientY-drag.y;drag.li.style.transform=`translateY(${dy}px)`;
@@ -615,9 +670,9 @@ function itemView(){
   <div class="scroll">
    <div style="display:flex;align-items:center;gap:14px;padding:0 20px 12px"><button data-act="adjustCover" aria-label="Adjust cover" style="width:84px;height:84px;border-radius:42px;background:${colorFor(it.id)};overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:30px;font-weight:800;flex-shrink:0;position:relative">${coverHTML(it.cover,it.name[0]||'?',it.coverCrop)}</button><div><div style="font-size:26px;font-weight:800;letter-spacing:-.02em">${esc(it.name)}</div><div style="font-size:13px;font-weight:600;color:var(--mut)">${groupName(it)?esc(groupName(it))+'<br>':''}${all.length} photo${all.length===1?'':'s'}${it.subs.length?' · '+it.subs.length+' '+esc(cat.subLabel.toLowerCase()):''}</div></div></div>
    <div class="chips" style="padding-bottom:16px">${sortKey?`<button class="pill" data-act="sortItemQueue" data-k="${sortKey}">${I.sort.replace(/22/g,'16')}Sort ${esc(it.subs.length?'outfits':childCats[0].name.toLowerCase())}</button>`:''}<button class="pill" data-act="shuffle" data-k="${it.id}" ${all.length?'':'disabled'}>${I.shuffle.replace(/18/g,'16')}Shuffle</button>${it.cover?`<button class="pill" data-act="adjustCover">Adjust cover</button>`:''}</div>
-   <div class="row-head"><div class="label" style="padding:0">${esc(cat.subLabel)}</div><button class="link" data-act="newSub">+ Add ${esc(singular(cat.subLabel.toLowerCase()))}</button></div>
-   ${it.subs.length?`<div class="grid2" style="margin-bottom:8px">${it.subs.map(s=>{const n=subCount(it.id,s.id);const st=S.subId===s.id?'only':S.hideSubs.has(s.id)?'hide':'';return `<button class="card ${n?'':'dim'} ${st==='hide'?'hide':''}" data-act="pickSub" data-id="${s.id}" data-lp="sub" style="${st==='only'?'outline:2px solid var(--acc);outline-offset:4px;border-radius:16px':''}"><div class="cov" style="aspect-ratio:4/3;background:var(--sur3)">${coverHTML(s.cover,n?'':'+',s.coverCrop)}</div><div class="nm">${st==='hide'?'hidden · ':st==='only'?'only · ':''}${esc(s.name)} <span style="color:var(--mut);font-weight:600">· ${n}</span></div></button>`}).join('')}</div><div class="note" style="padding-top:0;padding-bottom:14px">Tap an ${esc(singular(cat.subLabel.toLowerCase()))} to see only those photos and add more; tap again to hide them.</div>`:''}
-   ${childCats.map(cc=>{const ks=sortedItems(cc).filter(k=>k.groupId===it.id);return ks.length?`<div class="row-head"><div class="label" style="padding:0">${esc(cc.name)}</div><span style="font-size:12px;font-weight:600;color:var(--mut)">${ks.length}</span></div><div class="grid2" style="margin-bottom:8px">${ks.map(k=>{const st=S.kidId===k.id?'only':S.hideKids.has(k.id)?'hide':'';return `<div style="display:flex;flex-direction:column;gap:6px;min-width:0"><div ${st==='hide'?'class="card hide"':''} style="${st==='only'?'outline:2px solid var(--acc);outline-offset:4px;border-radius:16px':''}">${itemCard(k,cc)}</div><button class="pill" style="height:30px;align-self:flex-start" data-act="pickKid" data-id="${k.id}">${st==='only'?'Showing only · clear':st==='hide'?'Hidden · unhide':'Filter photos'}</button></div>`}).join('')}</div><div class="note" style="padding-top:0;padding-bottom:14px">Filter photos: first tap shows only that ${esc(singular(cc.name.toLowerCase()))}, second hides them.</div>`:''}).join('')}
+   <div class="row-head"><div class="label" style="padding:0">${esc(cat.subLabel)}</div><div>${it.subs.length?`<button class="link" data-act="manageSubs" style="margin-right:14px">Edit ${esc(cat.subLabel.toLowerCase())}</button>`:''}<button class="link" data-act="newSub">+ Add ${esc(singular(cat.subLabel.toLowerCase()))}</button></div></div>
+   ${it.subs.length?`<div class="grid2" style="margin-bottom:18px">${it.subs.map(s=>{const n=subCount(it.id,s.id);const st=S.subId===s.id?'only':S.hideSubs.has(s.id)?'hide':'';return `<button class="card ${n?'':'dim'} ${st==='hide'?'hide':''}" data-act="pickSub" data-id="${s.id}" data-lp="sub" style="${st==='only'?'outline:2px solid var(--acc);outline-offset:4px;border-radius:16px':''}"><div class="cov" style="aspect-ratio:4/3;background:var(--sur3)">${coverHTML(s.cover,n?'':'+',s.coverCrop)}</div><div class="nm">${st==='hide'?'hidden · ':st==='only'?'only · ':''}${esc(s.name)} <span style="color:var(--mut);font-weight:600">· ${n}</span></div></button>`}).join('')}</div>`:''}
+   ${childCats.map(cc=>{const ks=sortedItems(cc).filter(k=>k.groupId===it.id);return ks.length?`<div class="row-head"><div class="label" style="padding:0">${esc(cc.name)}</div><span style="font-size:12px;font-weight:600;color:var(--mut)">${ks.length}</span></div><div class="grid2" style="margin-bottom:18px">${ks.map(k=>{const st=S.kidId===k.id?'only':S.hideKids.has(k.id)?'hide':'';return `<div style="display:flex;flex-direction:column;gap:6px;min-width:0"><div ${st==='hide'?'class="card hide"':''} style="${st==='only'?'outline:2px solid var(--acc);outline-offset:4px;border-radius:16px':''}">${itemCard(k,cc)}</div><button class="pill" style="height:30px;align-self:flex-start" data-act="pickKid" data-id="${k.id}">${st==='only'?'Showing only · clear':st==='hide'?'Hidden · unhide':'Filter photos'}</button></div>`}).join('')}</div>`:''}).join('')}
    ${folders}
    <div class="row-head"><div class="label" style="padding:0">${active.length?esc(crumbs):'All '+esc(it.name)+' photos'}</div>${sub?`<button class="link" data-act="editSub" data-id="${sub.id}">Edit</button>${sub.cover?`<button class="link" style="margin-left:12px" data-act="adjustSubCover" data-id="${sub.id}">Adjust cover</button>`:''}`:'<span style="font-size:12px;font-weight:600;color:var(--mut)">Newest first</span>'}</div>
    ${fbar}
@@ -630,6 +685,7 @@ function quickRows(draft,act){
 }
 </script>
 <script>
+function mediaEl(p,attrs=''){return p.kind==='video'?`<video data-p="${p.id}" data-k="f" muted playsinline autoplay loop ${attrs}></video>`:`<img alt="" data-p="${p.id}" data-k="f" ${attrs}>`}
 /* ---------- Sort mode ---------- */
 function sortFilters(){
   const f=[{k:'unsorted',l:'Unsorted',fn:p=>!p.tags.length}];
@@ -659,7 +715,7 @@ function sortView(){
   const subRow=it?`<div class="row-head" style="padding-top:14px"><div class="label" style="padding:0">${esc(it.name)} · ${esc(cat.subLabel.toLowerCase())}</div><button class="link" data-act="newSubSort">+ New</button></div><div class="hrow" style="gap:10px">${[{id:null,name:'No '+singular(cat.subLabel.toLowerCase())},...it.subs].map(s=>{const on=S.draft.some(t=>t.item===it.id&&(t.sub||null)===s.id);return `<button class="sq ${on?'on':''}" data-act="sortSub" data-id="${s.id||''}"><div class="c">${s.id?coverHTML(s.cover,'',s.coverCrop):'<span style="color:var(--mut)">—</span>'}</div><div>${esc(s.name)}${on?' ✓':''}</div></button>`}).join('')}</div>`:'';
   const tags=`<div class="tags">${S.draft.map((t,i)=>{const l=tagLabel(t);const c=colorFor(t.item);return l?`<button class="tag" data-act="draftRm" data-i="${i}"><span class="dot" style="background:${c}"></span>${esc(l)}<span class="x">${I.x.replace(/18/g,'10')}</span></button>`:''}).join('')||'<span style="font-size:12px;font-weight:600;color:var(--mut);align-self:center">No tags yet — pick below</span>'}</div>`;
   const changed=JSON.stringify(S.draft)!==JSON.stringify(p.tags);
-  return `<div class="screen">${head}${chips}<div class="scroll" style="padding-bottom:8px"><button class="stage" id="sortStage" style="height:${it?'22vh':'36vh'};width:calc(100% - 40px)" data-act="openCur" aria-label="Open photo"><img alt="" data-p="${p.id}" data-k="f"></button><div style="text-align:center;font-size:12px;font-weight:600;color:var(--mut);padding-top:8px">${esc(p.name)}</div>${tags}<div style="height:12px"></div>${catRow}${itemRow}${subRow}${quickRows(S.draft,'sortQuick')}</div>
+  return `<div class="screen">${head}${chips}<div class="scroll" style="padding-bottom:8px"><button class="stage" id="sortStage" style="height:${it?'22vh':'36vh'};width:calc(100% - 40px)" data-act="openCur" aria-label="Open photo">${mediaEl(p)}</button><div style="text-align:center;font-size:12px;font-weight:600;color:var(--mut);padding-top:8px">${esc(p.name)}</div>${tags}<div style="height:12px"></div>${catRow}${itemRow}${subRow}${quickRows(S.draft,'sortQuick')}</div>
   <div class="bar"><button class="btn" style="flex:0 0 52px;padding:0" data-act="prev" aria-label="Previous" ${S.sortIdx>0?'':'disabled'}>${I.prev}</button><button class="btn" data-act="skip">Skip</button><button class="btn pri" data-act="saveNext">${changed||S.draft.length?'Save &amp; next':'Next'}</button></div></div>`;
 }
 function addTag(arr,itemId,subId){if(arr.some(t=>t.item===itemId&&(t.sub||null)===(subId||null)))return;if(!subId&&arr.some(t=>t.item===itemId))return;if(subId){const k=arr.findIndex(t=>t.item===itemId&&!t.sub);if(k>=0)arr.splice(k,1)}arr.push({item:itemId,sub:subId||null})}
@@ -695,7 +751,7 @@ function shuffleView(){
   const chip=(k,l)=>`<button class="pill ${S.shufFilter===k?'on':''}" data-act="shufFilter" data-k="${k}">${esc(l)}</button>`;
   return `<div class="screen"><div class="head"><button class="icon-btn" data-act="back" aria-label="Close">${I.x}</button><div style="font-size:18px;font-weight:800">Shuffle</div><div style="width:44px"></div></div>
   <div class="chips">${chip('all','Everything')}${chip('fav','Favorites')}${its.map(i=>chip(i.id,i.name)).join('')}</div>
-  <div class="scroll" style="display:flex;flex-direction:column">${p?`<div class="stage" style="flex:1;min-height:0;height:52vh"><img alt="" data-p="${p.id}" data-k="f"></div><div class="tags">${p.tags.map(t=>{const l=tagLabel(t);return l?`<span class="tag"><span class="dot" style="background:${colorFor(t.item)}"></span>${esc(l)}</span>`:''}).join('')}</div>`:'<div class="empty">Nothing to show for this filter.</div>'}</div>
+  <div class="scroll" style="display:flex;flex-direction:column">${p?`<div class="stage" style="flex:1;min-height:0;height:52vh">${mediaEl(p)}</div><div class="tags">${p.tags.map(t=>{const l=tagLabel(t);return l?`<span class="tag"><span class="dot" style="background:${colorFor(t.item)}"></span>${esc(l)}</span>`:''}).join('')}</div>`:'<div class="empty">Nothing to show for this filter.</div>'}</div>
   <div class="bar"><button class="btn" style="flex:0 0 52px;padding:0" data-act="shufFav" aria-label="Favorite" ${p?'':'disabled'}>${p&&p.fav?I.starF:I.star}</button><button class="btn" style="flex:0 0 52px;padding:0" data-act="shufOpen" aria-label="Open" ${p?'':'disabled'}>${I.tagI}</button><button class="btn pri" data-act="shufNext">${I.shuffle}Another</button></div></div>`;
 }
 
@@ -706,7 +762,7 @@ function moreView(){
   return `<div class="screen"><div class="head"><h1 class="title">More</h1></div><div class="scroll">
   <div class="label">Browse</div><div class="list">${enabledCats().filter(c=>c.id!==(p&&p.id)).map(c=>`<button class="li" data-nav="cat:${c.id}"><div><div class="t">${esc(c.name)}</div><div class="s">${itemsOf(c.id).length} items</div></div>${I.chev}</button>`).join('')}<button class="li" data-act="shuffle" data-k="all"><div class="t">Shuffle</div>${I.chev}</button><button class="li" data-act="search"><div class="t">Search</div>${I.chev}</button></div>
   <div class="label" style="padding-top:22px">Storage</div><div class="list"><div class="li" style="flex-direction:column;align-items:stretch"><div id="storage" class="s" style="margin:0">Checking…</div><div class="meter"><div id="storageBar" style="width:0"></div></div><div class="s" style="margin:0">${S.photos.length} photos · ${S.items.length} tags</div></div></div>
-  <div class="label" style="padding-top:22px">Tab categories</div><div class="note" style="padding-top:0;padding-bottom:10px">The first category is the Library tab's default. A photo can carry tags from any of them.</div>
+  <div class="label" style="padding-top:22px">Tab categories</div>
   <div class="list">${cats.map((c,i)=>`<div class="li"><button style="flex:1;text-align:left;color:inherit" data-act="editCat" data-id="${c.id}"><div class="t">${esc(c.name)}</div><div class="s">${c.quick?'Quick toggles':'Sub-buckets: '+esc(c.subLabel)}${groupLabelOf(c)?' · grouped by '+esc(groupLabelOf(c).toLowerCase()):''} · ${itemsOf(c.id).length} items</div></button><button class="pill tall" style="padding:0 10px" data-act="catUp" data-id="${c.id}" aria-label="Move up" ${i?'':'disabled'}>▲</button><button class="sw ${c.enabled?'on':''}" data-act="catToggle" data-id="${c.id}" aria-label="Enable ${esc(c.name)}"></button></div>`).join('')}</div>
   <div style="padding:10px 20px 0"><button class="btn" style="width:100%;border:1px dashed var(--sur4);background:none;color:var(--acc2)" data-act="newCat">${I.plus.replace(/20/g,'18')}New category</button></div>
   <div class="label" style="padding-top:22px">Tags</div><div class="list"><button class="li" data-act="manage"><div><div class="t">Manage tags</div><div class="s">Rename, add or delete characters, shows, outfits and types</div></div>${I.chev}</button></div>
@@ -722,7 +778,7 @@ function moreView(){
 }
 async function fillStorage(){
   const el=$('#storage'),bar=$('#storageBar');if(!el)return;
-  try{const e=await navigator.storage.estimate();const u=e.usage||0,q=e.quota||0;el.textContent=`${fmtMB(u)} used${q?' of '+fmtMB(q)+' available to this app':''}`;if(bar&&q)bar.style.width=Math.min(100,u/q*100).toFixed(1)+'%'}
+  try{const e=await navigator.storage.estimate();const u=e.usage||0,q=e.quota||0;const vb=S.photos.reduce((n,p)=>n+(p.kind==='video'?(p.bytes||0):0),0),vn=S.photos.reduce((n,p)=>n+(p.kind==='video'?1:0),0);el.textContent=`${fmtMB(u)} used${q?' of '+fmtMB(q)+' available to this app':''}${vn?` · ${vn} video${vn===1?'':'s'} ${fmtMB(vb)}`:''}`;if(bar&&q)bar.style.width=Math.min(100,u/q*100).toFixed(1)+'%'}
   catch(err){el.textContent='Storage estimate not available'}
 }
 
@@ -826,26 +882,29 @@ function tagSheet(title,initial,onDone,st){
 function openViewer(id,list){
   if(!photoById(id))return;
   list=(list&&list.length?list:[id]).filter(photoById);if(!list.includes(id))list=[id,...list];
+  let immersive=false;
   const step=d=>{const i=list.indexOf(id)+d;if(i<0||i>=list.length){toast(d>0?'Last photo':'First photo');return}id=list[i];paint()};
   const paint=()=>{const p=photoById(id);if(!p){closeSheet();return}
    const pos=list.length>1?`${list.indexOf(id)+1} / ${list.length}`:'';
-   $('#layer').innerHTML=`<div class="viewer"><div class="vh"><button class="icon-btn" data-v="close" aria-label="Close">${I.x}</button><div style="font-size:13px;font-weight:700;color:var(--mut);align-self:center">${pos}</div><button class="icon-btn" data-v="fav" aria-label="Favorite">${p.fav?I.starF:I.star}</button></div><div class="vi" id="zoomArea"><img alt="" id="zoomImg" data-p="${p.id}" data-k="f" style="touch-action:none;will-change:transform" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'empty',textContent:'This photo could not be loaded. Tap Revert if it is available, otherwise re-import it.'}))"></div>
-   <div class="vf"><div class="tags" style="padding-top:4px">${p.tags.map(t=>{const l=tagLabel(t);return l?`<span class="tag"><span class="dot" style="background:${colorFor(t.item)}"></span>${esc(l)}</span>`:''}).join('')||'<span style="font-size:12px;font-weight:600;color:var(--mut)">No tags</span>'}</div><div style="text-align:center;font-size:11px;font-weight:600;color:var(--mut);padding:4px 0 8px">${esc(p.name)} · ${new Date(p.added).toLocaleDateString()}${p.w?' · '+p.w+'×'+p.h:''}</div>
-   <div class="chips" style="padding:0 14px 6px"><button class="btn sm" data-v="tags">${I.tagI}Tags</button><button class="btn sm" data-v="edit">${I.edit.replace(/18/g,"16")}Edit</button>${p.hasOrig?`<button class="btn sm" data-v="revert">Revert</button>`:""}<button class="btn sm" data-v="cover" ${p.tags.length?'':'disabled'}>Set as cover</button><button class="btn sm" data-v="share" aria-label="Share">${I.share}</button><button class="btn sm danger" data-v="del" aria-label="Delete">${I.trash}</button></div></div></div>`;
+   $('#layer').innerHTML=`<div class="viewer"><div class="vh"><button class="icon-btn" data-v="close" aria-label="Close">${I.x}</button><div style="font-size:13px;font-weight:700;color:var(--mut);align-self:center">${pos}</div><button class="icon-btn" data-v="fav" aria-label="Favorite">${p.fav?I.starF:I.star}</button></div><div class="vi" id="zoomArea">${p.kind==='video'?`<video id="zoomVid" data-p="${p.id}" data-k="f" controls playsinline autoplay loop></video>`:''}<img alt="" id="zoomImg" data-p="${p.id}" data-k="f" style="touch-action:none;will-change:transform;${p.kind==='video'?'display:none':''}" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'empty',textContent:'This photo could not be loaded. Tap Revert if it is available, otherwise re-import it.'}))"></div>
+   <div class="vf"><div class="tags" style="padding-top:4px">${p.tags.map(t=>{const l=tagLabel(t);return l?`<span class="tag"><span class="dot" style="background:${colorFor(t.item)}"></span>${esc(l)}</span>`:''}).join('')||'<span style="font-size:12px;font-weight:600;color:var(--mut)">No tags</span>'}</div><div style="text-align:center;font-size:11px;font-weight:600;color:var(--mut);padding:4px 0 8px">${esc(p.name)} · ${new Date(p.added).toLocaleDateString()}${p.w?' · '+p.w+'×'+p.h:''}${p.kind==='video'?' · '+fmtDur(p.dur)+' · '+fmtMB(p.bytes||0):''}</div>
+   <div class="chips" style="padding:0 14px 6px"><button class="btn sm" data-v="tags">${I.tagI}Tags</button>${p.kind?'':`<button class="btn sm" data-v="edit">${I.edit.replace(/18/g,"16")}Edit</button>`}${p.hasOrig?`<button class="btn sm" data-v="revert">Revert</button>`:""}<button class="btn sm" data-v="cover" ${p.tags.length?'':'disabled'}>Set as cover</button><button class="btn sm" data-v="share" aria-label="Share">${I.share}</button><button class="btn sm danger" data-v="del" aria-label="Delete">${I.trash}</button></div></div></div>`;
    const L=$('#layer');hydrate(L);
    L.querySelector('[data-v="close"]').onclick=()=>{closeSheet();render()};
    L.querySelector('[data-v="fav"]').onclick=async()=>{p.fav=!p.fav;await savePhoto(p);paint()};
-   attachZoom($('#zoomArea'),$('#zoomImg'),list.length>1?step:null);
+   const V=L.querySelector('.viewer');if(immersive)V.classList.add('immersive');const close=()=>{closeSheet();render()};const toggleChrome=()=>{immersive=!immersive;V.classList.toggle('immersive',immersive)};
+   if(p.kind==='video'){$('#zoomImg').remove();attachSwipe($('#zoomArea'),list.length>1?step:null,close);let vt=0;$('#zoomArea').addEventListener('click',e=>{if(e.target.tagName==='VIDEO')return;toggleChrome()})}
+   else attachZoom($('#zoomArea'),$('#zoomImg'),list.length>1?step:null,{onClose:close,onTap:toggleChrome,isImmersive:()=>immersive});
    L.onkeydown=e=>{if(e.key==='ArrowRight')step(1);else if(e.key==='ArrowLeft')step(-1);else if(e.key==='Escape'){closeSheet();render()}};L.tabIndex=-1;L.focus();
-   L.querySelector('[data-v="edit"]').onclick=()=>openEditor(p,paint);
+   const ed=L.querySelector('[data-v="edit"]');if(ed)ed.onclick=()=>openEditor(p,paint);
    const rv=L.querySelector('[data-v="revert"]');if(rv)rv.onclick=async()=>{if(!await ask('Restore the original photo as imported? Tags stay.',{ok:'Revert'}))return;try{const r=await getFull(p.id);const o=r&&r.orig;const buf=o&&(o.buf||(o.full&&await o.full.arrayBuffer()));if(!buf||!buf.byteLength)throw 0;const full=new Blob([buf],{type:'image/jpeg'});const im=await loadImage(full);const thumb=await toBlob(draw(im,320),.8);Object.assign(p,{w:o.w,h:o.h,hash:o.hash});await saveImages(p,full,thumb,null);await savePhoto(p);toast('Original restored');paint()}catch(e){toast('Original could not be read on this device')}};
    L.querySelector('[data-v="tags"]').onclick=()=>tagSheet('Tags',p.tags,async d=>{p.tags=d;await savePhoto(p);recount();paint()},null);
-   L.querySelector('[data-v="share"]').onclick=async()=>{try{const r=await getFull(p.id);const file=new File([r.full],(p.name||'photo').replace(/\.\w+$/,'')+'.jpg',{type:'image/jpeg'});if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file]});return}const a=document.createElement('a');a.href=URL.createObjectURL(file);a.download=file.name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},2000)}catch(e){if(e.name!=='AbortError')toast('Could not share')}};
+   L.querySelector('[data-v="share"]').onclick=async()=>{try{const r=await getFull(p.id);const file=new File([r.full],(p.name||'photo').replace(/\.\w+$/,'')+extFor(p),{type:p.kind==='video'?p.mime:p.kind==='gif'?'image/gif':'image/jpeg'});if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file]});return}const a=document.createElement('a');a.href=URL.createObjectURL(file);a.download=file.name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},2000)}catch(e){if(e.name!=='AbortError')toast('Could not share')}};
    L.querySelector('[data-v="cover"]').onclick=()=>{
      const opts=[];const quick=new Set(quickCats().map(c=>c.id));
      for(const t of p.tags){const it=itemById(t.item);if(!it||quick.has(it.cat))continue;const cn=singular(catById(it.cat).name.toLowerCase());if(!opts.some(o=>o.k==='i'+it.id))opts.push({k:'i'+it.id,l:it.name+' ('+cn+' cover)',ratio:1,fn:async crop=>{it.cover=p.id;it.coverCrop=crop;await saveItem(it)}});const sb=subOf(it,t.sub);if(sb)opts.push({k:'s'+sb.id,l:it.name+' · '+sb.name,ratio:4/3,fn:async crop=>{sb.cover=p.id;sb.coverCrop=crop;await saveItem(it)}});
        for(const q of p.tags.map(x=>itemById(x.item)).filter(x=>x&&quick.has(x.cat)))opts.push({k:'q'+it.id+q.id,l:it.name+' · '+q.name+' folder',ratio:4/3,fn:async crop=>{it.typeCovers=it.typeCovers||{};it.typeCovers[q.id]={id:p.id,crop};await saveItem(it)}})}
-     sheet('Set as cover for',`<div class="list">${opts.map((o,i)=>`<button class="li" data-o="${i}"><div class="t">${esc(o.l)}</div>${I.chev}</button>`).join('')}</div>`,el=>el.querySelectorAll('[data-o]').forEach(b=>b.onclick=()=>{const o=opts[+b.dataset.o];closeSheet();pickCover(p,o.ratio,null,async crop=>{await o.fn(crop);toast('Cover updated');paint()},paint)}));
+     sheet('Set as cover for',`<div class="list">${opts.map((o,i)=>`<button class="li" data-o="${i}"><div class="t">${esc(o.l)}</div>${I.chev}</button>`).join('')}</div>`,el=>el.querySelectorAll('[data-o]').forEach(b=>b.onclick=async()=>{const o=opts[+b.dataset.o];closeSheet();if(p.kind==='video'){await o.fn(null);toast('Cover updated');paint();return}pickCover(p,o.ratio,null,async crop=>{await o.fn(crop);toast('Cover updated');paint()},paint)}));
    };
    L.querySelector('[data-v="del"]').onclick=async()=>{if(!await ask('Delete this photo from the app?',{ok:'Delete',danger:true}))return;const i=list.indexOf(id);const kept=await deletePhotos([p.id],true);list=list.filter(x=>x!==p.id);toast('Photo deleted',async()=>{await restorePhotos(kept);render()});if(!list.length){closeSheet();render();return}id=list[Math.min(i,list.length-1)];paint()};
   };
@@ -856,11 +915,26 @@ function pickCover(p,ratio,crop,onPick,onCancel){openEditor(p,onCancel||(()=>ren
 /* ---------- hide sheet (Gallery) ---------- */
 function hideSheet(){
   const groups=enabledCats().map(c=>({c,its:sortedItems(c).filter(i=>count(i.id))})).filter(g=>g.its.length);
-  sheet('Hide photos tagged…',`<div class="note" style="padding-top:0;padding-bottom:10px">Hidden tags stay hidden in Gallery until you turn them off here.</div>${groups.map(g=>`<div class="label" style="padding-top:8px">${esc(g.c.name)}</div><div class="list" style="margin-bottom:8px">${g.its.map(i=>`<div class="li"><div><div class="t">${esc(i.name)}</div><div class="s">${count(i.id)} photos</div></div><button class="sw ${S.galHide.has(i.id)?'on':''}" data-h="${i.id}" aria-label="Hide ${esc(i.name)}"></button></div>`).join('')}</div>`).join('')||'<div class="empty">No tagged photos yet.</div>'}<div style="padding:12px 20px 0;display:flex;gap:8px"><button class="btn" data-clear ${S.galHide.size?'':'disabled'}>Show everything</button><button class="btn pri" data-done>Done</button></div>`,el=>{
+  sheet('Hide photos tagged…',`${groups.map(g=>`<div class="label" style="padding-top:8px">${esc(g.c.name)}</div><div class="list" style="margin-bottom:8px">${g.its.map(i=>`<div class="li"><div><div class="t">${esc(i.name)}</div><div class="s">${count(i.id)} photos</div></div><button class="sw ${S.galHide.has(i.id)?'on':''}" data-h="${i.id}" aria-label="Hide ${esc(i.name)}"></button></div>`).join('')}</div>`).join('')||'<div class="empty">No tagged photos yet.</div>'}<div style="padding:12px 20px 0;display:flex;gap:8px"><button class="btn" data-clear ${S.galHide.size?'':'disabled'}>Show everything</button><button class="btn pri" data-done>Done</button></div>`,el=>{
     el.querySelectorAll('[data-h]').forEach(b=>b.onclick=()=>{const id=b.dataset.h;S.galHide.has(id)?S.galHide.delete(id):S.galHide.add(id);b.classList.toggle('on',S.galHide.has(id));el.querySelector('[data-clear]').disabled=!S.galHide.size});
     el.querySelector('[data-clear]').onclick=()=>{S.galHide.clear();closeSheet();render()};
     el.querySelector('[data-done]').onclick=()=>{closeSheet();render()};
   });
+}
+/* ---------- manage sub-buckets (reorder / rename / delete) ---------- */
+function subsManageSheet(it){
+  const cat=catById(it.cat);
+  const row=s=>`<div class="drag-li" data-id="${s.id}"><span class="handle">${I.grip}</span><div style="width:44px;height:33px;border-radius:8px;background:var(--sur3);overflow:hidden;position:relative;flex-shrink:0">${coverHTML(s.cover,'',s.coverCrop)}</div><button data-ren="${s.id}" style="flex:1;text-align:left;font-weight:700;color:inherit;min-width:0"><div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(s.name)}</div><div style="font-size:12px;font-weight:600;color:var(--mut)">${subCount(it.id,s.id)} photos</div></button><button class="icon-btn" style="width:40px;height:40px;color:var(--acc2)" data-del="${s.id}" aria-label="Delete">${I.trash}</button></div>`;
+  sheet(esc(cat.subLabel)+' · '+esc(it.name),`<div id="dl" style="margin:0 20px;border-radius:16px;overflow:hidden">${it.subs.map(row).join('')}</div>`,el=>{
+    const L=el.querySelector('#dl');let drag=null;
+    L.addEventListener('pointerdown',e=>{const h=e.target.closest('.handle');if(!h)return;const li=h.closest('.drag-li');li.setPointerCapture(e.pointerId);li.classList.add('moving');drag={li,y:e.clientY,h:li.offsetHeight};e.preventDefault()});
+    L.addEventListener('pointermove',e=>{if(!drag)return;const dy=e.clientY-drag.y;drag.li.style.transform=`translateY(${dy}px)`;const sib=dy>0?drag.li.nextElementSibling:drag.li.previousElementSibling;if(sib&&Math.abs(dy)>drag.h*0.6){drag.li.style.transform='';drag.y=e.clientY;if(dy>0)sib.after(drag.li);else sib.before(drag.li)}});
+    const end=async()=>{if(!drag)return;drag.li.classList.remove('moving');drag.li.style.transform='';drag=null;const ids=[...L.querySelectorAll('.drag-li')].map(x=>x.dataset.id);it.subs.sort((a,b)=>ids.indexOf(a.id)-ids.indexOf(b.id));await saveItem(it)};
+    L.addEventListener('pointerup',end);L.addEventListener('pointercancel',end);
+    el.querySelectorAll('[data-ren]').forEach(b=>b.onclick=()=>{closeSheet();subForm(it,subOf(it,b.dataset.ren),()=>subsManageSheet(it),()=>subsManageSheet(it))});
+    el.querySelectorAll('[data-del]').forEach(b=>b.onclick=async()=>{const sb=subOf(it,b.dataset.del);closeSheet();if(!await ask(`Delete ${sb.name}? Photos keep the ${it.name} tag.`,{ok:'Delete',danger:true})){subsManageSheet(it);return}for(const p of S.photos){let ch=false;p.tags.forEach(t=>{if(t.item===it.id&&t.sub===sb.id){t.sub=null;ch=true}});if(ch)await savePhoto(p)}it.subs=it.subs.filter(s=>s.id!==sb.id);await saveItem(it);if(S.subId===sb.id)S.subId=null;S.hideSubs.delete(sb.id);recount();render();if(it.subs.length)subsManageSheet(it)});
+    el.querySelector('[data-done]').onclick=()=>{closeSheet();render()};
+  },{foot:'<button class="btn pri" data-done style="height:48px">Done</button>'});
 }
 /* ---------- photo picker sheet ---------- */
 function photoPickerSheet(title,candidates,onDone,opts={}){
@@ -869,7 +943,7 @@ function photoPickerSheet(title,candidates,onDone,opts={}){
   const noSubN=it?candidates.reduce((n,p)=>n+(p.tags.some(t=>t.item===it.id&&!t.sub)?1:0),0):0;
   const filtered=()=>{let l=candidates;if(fType)l=l.filter(p=>p.tags.some(t=>t.item===fType));if(noSub&&it)l=l.filter(p=>p.tags.some(t=>t.item===it.id&&!t.sub));return l};
   const chips=()=>`<div class="chips" style="padding-bottom:8px"><button class="pill ${!fType?'on':''}" data-ft="">All · ${candidates.length}</button>${types.map(({q,n})=>`<button class="pill ${fType===q.id?'on':''}" data-ft="${q.id}">${esc(q.name)} · ${n}</button>`).join('')}${it&&it.subs.length?`<button class="pill ${noSub?'acc':''}" data-nosub>No ${esc(singular(catById(it.cat).subLabel.toLowerCase()))} yet · ${noSubN}</button>`:''}</div>`;
-  const grid=()=>{const list=filtered().slice(0,cap);return `${filtered().length>cap?`<div class="note" style="padding-top:0">Showing the newest ${cap} of ${filtered().length}.</div>`:''}<div class="grid3" id="pp">${list.map(p=>`<button class="tile ${sel.has(p.id)?'sel':''}" data-pp="${p.id}"><div class="img"><img alt="" data-p="${p.id}" data-k="t"><div class="chk">${sel.has(p.id)?I.check:''}</div></div></button>`).join('')||'<div class="empty" style="grid-column:1/-1">No photos match.</div>'}</div>`};
+  const grid=()=>{const list=filtered().slice(0,cap);return `${filtered().length>cap?`<div class="note" style="padding-top:0">Showing the newest ${cap} of ${filtered().length}.</div>`:''}<div class="grid3" id="pp">${list.map(p=>`<button class="tile ${sel.has(p.id)?'sel':''}" data-pp="${p.id}"><div class="img"><img alt="" data-p="${p.id}" data-k="t">${p.kind==='video'?`<span class="badge">▶ ${fmtDur(p.dur)}</span>`:p.kind==='gif'?'<span class="badge">GIF</span>':''}<div class="chk">${sel.has(p.id)?I.check:''}</div></div></button>`).join('')||'<div class="empty" style="grid-column:1/-1">No photos match.</div>'}</div>`};
   sheet(title,grid(),el=>{
     const btn=el.querySelector('[data-done]');const upd=()=>{btn.textContent=`Add ${sel.size}`;btn.disabled=!sel.size};
     const bindGrid=()=>{el.querySelectorAll('[data-pp]').forEach(b=>b.onclick=()=>{const id=b.dataset.pp;sel.has(id)?sel.delete(id):sel.add(id);b.classList.toggle('sel',sel.has(id));b.querySelector('.chk').innerHTML=sel.has(id)?I.check:'';upd()});hydrate(el)};
@@ -886,12 +960,12 @@ function outfitPickSheet(it,onPick){
 }
 /* ---------- export / import ---------- */
 const EXPORT_PART=400;
-function dataJSON(part,of,ids){return {version:2,exported:new Date().toISOString(),part,of,cats:S.cats,items:S.items,recent:S.recent,photos:S.photos.map(p=>({...meta(p),file:'photos/'+p.id+'.jpg',thumb:'thumbs/'+p.id+'.jpg',orig:p.hasOrig?'originals/'+p.id+'.jpg':null,inPart:ids?ids.has(p.id):true}))}}
+function dataJSON(part,of,ids){return {version:2,exported:new Date().toISOString(),part,of,cats:S.cats,items:S.items,recent:S.recent,photos:S.photos.map(p=>({...meta(p),file:'photos/'+p.id+extFor(p),thumb:'thumbs/'+p.id+'.jpg',orig:p.hasOrig?'originals/'+p.id+'.jpg':null,inPart:ids?ids.has(p.id):true}))}}
 async function buildZip(photos,withData,part,of){
   const z=new JSZip();const ids=new Set(photos.map(p=>p.id));
   if(withData)z.file('data.json',JSON.stringify(dataJSON(part,of,ids)));
   const f=z.folder('photos'),t=z.folder('thumbs'),o=z.folder('originals');let n=0;
-  for(const p of photos){const r=await DB.get('blobs',p.id);const th=await DB.get('thumbs',p.id);if(!r)continue;f.file(p.id+'.jpg',r.full);if(withData&&th)t.file(p.id+'.jpg',th.thumb);if(withData&&r.orig&&(r.orig.buf||r.orig.full))o.file(p.id+'.jpg',r.orig.buf||r.orig.full);if(++n%25===0){showProgress(n,photos.length,'Packing');await sleep(0)}}
+  for(const p of photos){const r=await DB.get('blobs',p.id);const th=await DB.get('thumbs',p.id);if(!r)continue;f.file(p.id+extFor(p),r.full);if(withData&&th)t.file(p.id+'.jpg',th.thumb);if(withData&&r.orig&&(r.orig.buf||r.orig.full))o.file(p.id+'.jpg',r.orig.buf||r.orig.full);if(++n%25===0){showProgress(n,photos.length,'Packing');await sleep(0)}}
   const blob=await z.generateAsync({type:'blob',compression:'STORE'});hideProgress();return blob;
 }
 async function shareOrDownload(blob,name){
@@ -916,9 +990,9 @@ async function importZip(file){
     const list=d.photos.filter(q=>q.inPart!==false);const t=list.length;let quota=false;
     for(const q of list){
       showProgress(++n,t,'Importing');if(photoById(q.id))continue;const zf=z.file(q.file);if(!zf)continue;
-      const full=new Blob([await zf.async('arraybuffer')],{type:'image/jpeg'});
+      const full=new Blob([await zf.async('arraybuffer')],{type:mimeForExt(q.file)});
       let thumb=null;const tf=q.thumb&&z.file(q.thumb);if(tf)thumb=new Blob([await tf.async('arraybuffer')],{type:'image/jpeg'});
-      if(!thumb){const im=await loadImage(full);thumb=await toBlob(draw(im,320),.8)}
+      if(!thumb){if(q.kind==='video')continue;const im=await loadImage(full);thumb=await toBlob(draw(im,320),.8)}
       let orig=null;if(q.orig&&typeof q.orig==='string'){const of=z.file(q.orig);if(of)orig={w:q.w,h:q.h,hash:q.hash,buf:await of.async('arraybuffer')}}
       else if(q.orig&&q.orig.file){const of=z.file(q.orig.file);if(of)orig={w:q.orig.w,h:q.orig.h,hash:q.orig.hash,buf:await of.async('arraybuffer')}}
       const p={...q};delete p.file;delete p.thumb;delete p.orig;delete p.inPart;delete p.full;
@@ -956,6 +1030,7 @@ const actions={
   back:()=>{const h=S.history.pop();S.dupePairs=null;if(h)go(h.view,{catView:h.catView,itemId:h.itemId,subId:h.subId||null,typeId:h.typeId||null});else go('gallery')},
   editItem:()=>{const it=itemById(S.itemId);itemForm(catById(it.cat),it)},
   newSub:()=>subForm(itemById(S.itemId)),
+  manageSubs:()=>subsManageSheet(itemById(S.itemId)),
   pickSub:b=>{const k=b.dataset.id;if(b.dataset.off){if(S.subId===k)S.subId=null;S.hideSubs.delete(k);render();return}if(S.subId===k){S.subId=null;S.hideSubs.add(k)}else if(S.hideSubs.has(k))S.hideSubs.delete(k);else{S.subId=k;S.hideSubs.delete(k)}render()},
   pickKid:b=>{const k=b.dataset.id;if(b.dataset.off){if(S.kidId===k)S.kidId=null;S.hideKids.delete(k);render();return}if(S.kidId===k){S.kidId=null;S.hideKids.add(k)}else if(S.hideKids.has(k))S.hideKids.delete(k);else{S.kidId=k;S.hideKids.delete(k)}render()},
   addToSub:b=>{const it=itemById(S.itemId);const sb=subOf(it,b.dataset.id);if(!sb)return;const cands=S.photos.filter(p=>p.tags.some(t=>t.item===it.id&&t.sub!==sb.id));photoPickerSheet(`Add to ${esc(sb.name)}`,cands,async ids=>{if(!ids.length)return;for(const id of ids){const p=photoById(id);addTag(p.tags,it.id,sb.id);await savePhoto(p)}recount();render();toast(`Added ${ids.length} to ${sb.name}`)},{item:it})},
@@ -1065,22 +1140,26 @@ async function drainShareInbox(){
 }
 
 /* ---------- pinch zoom + swipe ---------- */
-function attachZoom(area,img,onSwipe){
-  let scale=1,tx=0,ty=0,start=null,lastTap=0,swipeDx=0;
+function attachZoom(area,img,onSwipe,opts={}){
+  let scale=1,tx=0,ty=0,start=null,lastTap=0,swipeDx=0,swipeDy=0,moved=false,tapT=null;
   img.style.transition='none';
   const apply=()=>{img.style.transform=`translate(${tx}px,${ty}px) scale(${scale})`};
   const clamp=()=>{if(scale<=1){scale=1;tx=0;ty=0;return}const r=area.getBoundingClientRect(),iw=img.clientWidth*scale,ih=img.clientHeight*scale;const mx=Math.max(0,(iw-r.width)/2),my=Math.max(0,(ih-r.height)/2);tx=Math.min(mx,Math.max(-mx,tx));ty=Math.min(my,Math.max(-my,ty))};
   const dist=t=>Math.hypot(t[0].clientX-t[1].clientX,t[0].clientY-t[1].clientY);
-  area.addEventListener('touchstart',e=>{const t=e.touches;if(t.length===2)start={d:dist(t),s:scale,cx:(t[0].clientX+t[1].clientX)/2,cy:(t[0].clientY+t[1].clientY)/2,tx,ty};else if(t.length===1){start={x:t[0].clientX,y:t[0].clientY,tx,ty};const now=Date.now();if(now-lastTap<300){scale=scale>1?1:2.5;tx=0;ty=0;clamp();apply();start=null}lastTap=now}},{passive:true});
-  area.addEventListener('touchmove',e=>{const t=e.touches;if(!start)return;e.preventDefault();if(t.length===2&&start.d){scale=Math.min(6,Math.max(1,start.s*dist(t)/start.d));const cx=(t[0].clientX+t[1].clientX)/2,cy=(t[0].clientY+t[1].clientY)/2;tx=start.tx+(cx-start.cx);ty=start.ty+(cy-start.cy)}else if(t.length===1&&start.x!==undefined&&scale>1){tx=start.tx+(t[0].clientX-start.x);ty=start.ty+(t[0].clientY-start.y)}else if(t.length===1&&start.x!==undefined&&scale===1&&onSwipe){const dx=t[0].clientX-start.x,dy=t[0].clientY-start.y;if(Math.abs(dx)>Math.abs(dy)){swipeDx=dx;img.style.transform=`translate(${dx}px,0) scale(1)`;img.style.opacity=String(Math.max(.4,1-Math.abs(dx)/400));return}}clamp();apply()},{passive:false});
-  area.addEventListener('touchend',e=>{if(e.touches.length===0){start=null;if(scale===1&&onSwipe&&Math.abs(swipeDx)>0){const dx=swipeDx;swipeDx=0;if(Math.abs(dx)>70){onSwipe(dx<0?1:-1);return}img.style.transition='transform .18s';img.style.opacity='1';apply();setTimeout(()=>img.style.transition='none',200)}}else if(e.touches.length===1){const t=e.touches;start={x:t[0].clientX,y:t[0].clientY,tx,ty}}});
+  area.addEventListener('touchstart',e=>{const t=e.touches;if(t.length===2)start={d:dist(t),s:scale,cx:(t[0].clientX+t[1].clientX)/2,cy:(t[0].clientY+t[1].clientY)/2,tx,ty};else if(t.length===1){start={x:t[0].clientX,y:t[0].clientY,tx,ty};moved=false}},{passive:true});
+  area.addEventListener('touchmove',e=>{const t=e.touches;if(!start)return;e.preventDefault();if(t.length===2&&start.d){scale=Math.min(6,Math.max(1,start.s*dist(t)/start.d));const cx=(t[0].clientX+t[1].clientX)/2,cy=(t[0].clientY+t[1].clientY)/2;tx=start.tx+(cx-start.cx);ty=start.ty+(cy-start.cy)}else if(t.length===1&&start.x!==undefined&&scale>1){tx=start.tx+(t[0].clientX-start.x);ty=start.ty+(t[0].clientY-start.y)}else if(t.length===1&&start.x!==undefined&&scale===1){const dx=t[0].clientX-start.x,dy=t[0].clientY-start.y;if(Math.hypot(dx,dy)>8)moved=true;if(Math.abs(dx)>Math.abs(dy)&&onSwipe){swipeDx=dx;swipeDy=0;img.style.transform=`translate(${dx}px,0) scale(1)`;img.style.opacity=String(Math.max(.4,1-Math.abs(dx)/400));return}if(Math.abs(dy)>Math.abs(dx)&&opts.onClose){swipeDy=dy;swipeDx=0;img.style.transform=`translate(0,${dy}px) scale(1)`;img.style.opacity=String(Math.max(.3,1-Math.abs(dy)/300));return}}else if(t.length===1&&start.x!==undefined&&scale>1&&Math.hypot(t[0].clientX-start.x,t[0].clientY-start.y)>8)moved=true;clamp();apply()},{passive:false});
+  area.addEventListener('touchend',e=>{if(e.touches.length===0){const wasTap=start&&!moved&&start.x!==undefined&&!swipeDx&&!swipeDy;start=null;
+    if(scale===1&&Math.abs(swipeDy)>0&&opts.onClose){const dy=swipeDy;swipeDy=0;if(Math.abs(dy)>80){opts.onClose();return}img.style.transition='transform .18s';img.style.opacity='1';apply();setTimeout(()=>img.style.transition='none',200);return}
+    if(scale===1&&onSwipe&&Math.abs(swipeDx)>0){const dx=swipeDx;swipeDx=0;if(Math.abs(dx)>70){onSwipe(dx<0?1:-1);return}img.style.transition='transform .18s';img.style.opacity='1';apply();setTimeout(()=>img.style.transition='none',200);return}
+    if(wasTap){const now=Date.now();if(now-lastTap<300){lastTap=0;clearTimeout(tapT);tapT=null;if(opts.isImmersive&&opts.isImmersive()){opts.onTap()}else{scale=scale>1?1:2.5;tx=0;ty=0;clamp();apply()}}else{lastTap=now;if(opts.onTap){tapT=setTimeout(()=>{tapT=null;opts.onTap()},300)}}}
+  }else if(e.touches.length===1){const t=e.touches;start={x:t[0].clientX,y:t[0].clientY,tx,ty}}});
   area.addEventListener('wheel',e=>{e.preventDefault();scale=Math.min(6,Math.max(1,scale*(e.deltaY<0?1.1:0.9)));clamp();apply()},{passive:false});
 }
-function attachSwipe(el,onSwipe){let sx=null,sy=null;el.addEventListener('touchstart',e=>{const t=e.touches[0];sx=t.clientX;sy=t.clientY},{passive:true});el.addEventListener('touchend',e=>{if(sx===null)return;const t=e.changedTouches[0];const dx=t.clientX-sx,dy=t.clientY-sy;sx=null;if(Math.abs(dx)>60&&Math.abs(dx)>Math.abs(dy)*1.5)onSwipe(dx<0?1:-1)})}
+function attachSwipe(el,onSwipe,onVertical){let sx=null,sy=null;el.addEventListener('touchstart',e=>{const t=e.touches[0];sx=t.clientX;sy=t.clientY},{passive:true});el.addEventListener('touchend',e=>{if(sx===null)return;const t=e.changedTouches[0];const dx=t.clientX-sx,dy=t.clientY-sy;sx=null;if(Math.abs(dx)>60&&Math.abs(dx)>Math.abs(dy)*1.5&&onSwipe)onSwipe(dx<0?1:-1);else if(Math.abs(dy)>80&&Math.abs(dy)>Math.abs(dx)*1.5&&onVertical)onVertical()})}
 
 /* ---------- crop / rotate editor (also the cover picker) ---------- */
 async function openEditor(p,after,opts){
-  const pick=opts&&opts.pick;const rec=await getFull(p.id);if(!rec||!rec.full){toast('Photo could not be loaded');return}
+  const pick=opts&&opts.pick;if(p.kind==='video'){toast('Videos can\'t be edited');after&&after();return}const rec=await getFull(p.id);if(!rec||!rec.full){toast('Photo could not be loaded');return}
   const im=await loadImage(rec.full);
   let rot=0,ratio=pick?pick.ratio:null;let crop=pick&&pick.crop?{...pick.crop}:{x:0,y:0,w:1,h:1};
   const L=$('#layer');
