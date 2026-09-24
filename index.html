@@ -119,6 +119,9 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--acc);outline-offset
 .spin{width:22px;height:22px;border:3px solid var(--sur4);border-top-color:var(--acc);border-radius:50%;animation:sp .8s linear infinite}
 @keyframes sp{to{transform:rotate(360deg)}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+.editor{position:fixed;inset:0;background:#000;z-index:35;display:flex;flex-direction:column}
+.editor canvas{touch-action:none;display:block}
+.editor .eh{display:flex;justify-content:space-between;align-items:center;padding:calc(var(--sat) + 10px) 14px 8px;color:var(--txt)}
 .progress{position:fixed;top:0;left:0;right:0;padding:calc(var(--sat) + 10px) 20px 10px;background:var(--bg2);z-index:50;display:flex;align-items:center;gap:12px;font-size:13px;font-weight:700}
 </style>
 </head>
@@ -191,7 +194,9 @@ const photoById=id=>S.photos.find(p=>p.id===id);
 const itemById=id=>S.items.find(i=>i.id===id);
 const catById=id=>S.cats.find(c=>c.id===id);
 const enabledCats=()=>S.cats.filter(c=>c.enabled).sort((a,b)=>a.order-b.order);
-const primaryCat=()=>enabledCats()[0];
+const quickCats=()=>enabledCats().filter(c=>c.quick);
+const mainCats=()=>enabledCats().filter(c=>!c.quick);
+const primaryCat=()=>mainCats()[0]||enabledCats()[0];
 const itemsOf=cat=>S.items.filter(i=>i.cat===cat);
 const subOf=(item,subId)=>item&&item.subs.find(s=>s.id===subId);
 function tagLabel(t){const it=itemById(t.item);if(!it)return null;const sb=subOf(it,t.sub);return it.name+(sb?' · '+sb.name:'')}
@@ -204,10 +209,17 @@ async function seed(){
   const c2={id:uid(),name:'Shows',subLabel:'Seasons',groupLabel:'',enabled:true,order:1};
   await DB.putMany('cats',[c1,c2]);S.cats=[c1,c2];
 }
+async function seedQuick(){
+  if(S.cats.some(c=>c.quick))return;
+  const c={id:uid(),name:'Type',subLabel:'Variants',groupLabel:'',enabled:true,order:S.cats.length,quick:true};
+  await saveCat(c);S.cats.push(c);
+  const its=['Official art','Anime','Fanart','3D','NSFW'].map((n,i)=>({id:uid(),cat:c.id,name:n,group:'',cover:null,subs:[],order:i,added:Date.now()}));
+  await DB.putMany('items',its);S.items.push(...its);
+}
 async function load(){
   await DB.open();
   S.cats=await DB.all('cats');S.items=await DB.all('items');S.photos=await DB.all('photos');
-  await seed();
+  await seed();await seedQuick();
   S.photos.sort(byNewest);
 }
 
@@ -295,14 +307,15 @@ function coverHTML(id,fallbackText,color){const p=photoById(id);return p?`<img s
 /* ---------- Gallery ---------- */
 function gallery(){
   const untagged=S.photos.filter(p=>!p.tags.length);
-  const list=S.galFilter==='unsorted'?untagged:S.galFilter==='tagged'?S.photos.filter(p=>p.tags.length):S.photos;
+  let list=S.galFilter==='unsorted'?untagged:S.galFilter==='tagged'?S.photos.filter(p=>p.tags.length):S.photos;
+  if(S.galType)list=list.filter(p=>p.tags.some(t=>t.item===S.galType));
   const sel=S.select;
   const head=sel?`<div class="head"><button class="pill" data-act="selCancel">Cancel</button><div style="font-size:16px;font-weight:800">${sel.size} selected</div><button class="pill" data-act="selAll">${sel.size===list.length?'Select none':'Select all'}</button></div>`
    :`<div class="head"><h1 class="title">Gallery</h1><div style="display:flex;gap:8px"><button class="pill" data-act="selStart" ${S.photos.length?'':'disabled'}>Select</button><button class="pill on" data-act="add">${I.plus.replace('20','16').replace('20','16')}Add photos</button></div></div>`;
   const chip=(k,l,n)=>`<button class="pill ${S.galFilter===k?'on':''}" data-act="galFilter" data-k="${k}">${l} · ${n}</button>`;
   const body=S.photos.length?monthGrid(list,sel):`<div class="empty">No photos yet.<br>Tap Add photos to pick from your library, or share photos to this app.</div>`;
   const bar=sel?`<div class="bar" style="flex-direction:column;gap:8px;background:var(--bg2);border-top:1px solid var(--line)"><div style="font-size:12px;font-weight:700;color:var(--mut)">Apply to ${sel.size} photo${sel.size===1?'':'s'}</div><div style="display:flex;gap:8px"><button class="btn pri" style="height:48px;flex:1" data-act="selTag" ${sel.size?'':'disabled'}>Tag…</button><button class="btn" style="height:48px" data-act="selFav" ${sel.size?'':'disabled'}>${I.star.replace('22','16').replace('22','16')}Favorite</button><button class="btn" style="height:48px" data-act="selExport" ${sel.size?'':'disabled'}>Export</button><button class="btn danger" style="height:48px;flex:0 0 48px;padding:0" data-act="selDelete" aria-label="Delete selected" ${sel.size?'':'disabled'}>${I.trash}</button></div></div>`:nav();
-  return `<div class="screen">${head}<div class="chips">${chip('all','All',S.photos.length)}${chip('unsorted','Unsorted',untagged.length)}${chip('tagged','Tagged',S.photos.length-untagged.length)}</div><div class="scroll">${body}${S.photos.length?'<div class="note">Dots under a photo show its tagged items. Tap a photo to open it, or hold to select.</div>':''}</div>${bar}</div>`;
+  return `<div class="screen">${head}<div class="chips">${chip('all','All',S.photos.length)}${chip('unsorted','Unsorted',untagged.length)}${chip('tagged','Tagged',S.photos.length-untagged.length)}${quickCats().flatMap(c=>sortedItems(c)).map(i=>`<button class="pill ${S.galType===i.id?'acc':''}" data-act="galType" data-k="${i.id}">${esc(i.name)}</button>`).join('')}</div><div class="scroll">${body}${S.photos.length?'<div class="note">Dots under a photo show its tagged items. Tap a photo to open it, or hold to select.</div>':''}</div>${bar}</div>`;
 }
 
 /* ---------- Category view (Characters / Shows / …) ---------- */
@@ -345,6 +358,9 @@ function itemView(){
   </div>${nav()}</div>`;
 }
 
+function quickRows(draft,act){
+  return quickCats().map(c=>{const its=sortedItems(c);if(!its.length)return'';return `<div class="row-head" style="padding-top:14px"><div class="label" style="padding:0">${esc(c.name)}</div><button class="link" data-act="${act}New" data-cat="${c.id}">+ New</button></div><div class="chips" style="padding-bottom:0">${its.map(i=>{const on=draft.some(t=>t.item===i.id);return `<button class="pill ${on?'acc':''}" data-act="${act}" data-id="${i.id}">${esc(i.name)}${on?' ✓':''}</button>`}).join('')}</div>`}).join('');
+}
 /* ---------- Sort mode ---------- */
 function sortFilters(){
   const f=[{k:'unsorted',l:'Unsorted',fn:p=>!p.tags.length}];
@@ -359,18 +375,18 @@ function startSort(filter){
   S.sortQueue=S.photos.filter(f.fn).map(p=>p.id);S.sortIdx=0;
   loadDraft();go('sort');
 }
-function loadDraft(){const p=photoById(S.sortQueue[S.sortIdx]);S.draft=p?p.tags.map(t=>({...t})):[];S.sortCat=S.sortCat||(primaryCat()&&primaryCat().id);const it=S.sortItem&&itemById(S.sortItem);if(!it||it.cat!==S.sortCat)S.sortItem=null}
+function loadDraft(){const p=photoById(S.sortQueue[S.sortIdx]);S.draft=p?p.tags.map(t=>({...t})):[];S.sortCat=(S.sortCat&&mainCats().some(c=>c.id===S.sortCat))?S.sortCat:(primaryCat()&&primaryCat().id);const it=S.sortItem&&itemById(S.sortItem);if(!it||it.cat!==S.sortCat)S.sortItem=null}
 function sortView(){
   const p=photoById(S.sortQueue[S.sortIdx]);const fs=sortFilters();
   const chips=`<div class="chips">${fs.map(f=>`<button class="pill ${S.sortFilter===f.k?'on':''}" data-act="sortFilter" data-k="${f.k}">${esc(f.l)}</button>`).join('')}</div>`;
   const head=`<div class="head"><div style="display:flex;align-items:center;gap:10px"><button class="icon-btn" data-act="closeSort" aria-label="Close">${I.x}</button><div style="font-size:18px;font-weight:800">Sort</div></div><div style="font-size:14px;font-weight:600;color:var(--mut)">${p?`${S.sortIdx+1} of ${S.sortQueue.length}`:''}</div></div>`;
   if(!p)return `<div class="screen">${head}${chips}<div class="empty" style="flex:1">${S.sortQueue.length?'All done — every photo in this filter is sorted.':'Nothing matches this filter.'}<br>Pick another filter, or add more photos.</div>${nav()}</div>`;
-  const cats=enabledCats();const cat=catById(S.sortCat)||cats[0];const its=sortedItems(cat);const it=itemById(S.sortItem);
+  const cats=mainCats();const cat=catById(S.sortCat)||cats[0];const its=sortedItems(cat);const it=itemById(S.sortItem);
   const catRow=cats.length>1?`<div class="chips" style="padding-bottom:8px">${cats.map(c=>`<button class="pill ${c.id===cat.id?'acc':''}" data-act="sortCat" data-k="${c.id}">${esc(c.name)}</button>`).join('')}</div>`:'';
   const itemRow=`<div class="row-head"><div class="label" style="padding:0">${esc(cat.name)}</div><button class="link" data-act="newItemSort">+ New</button></div><div class="hrow">${its.map(i=>{const on=it&&it.id===i.id;const tagged=S.draft.some(t=>t.item===i.id);return `<button class="av ${on?'on':''}" data-act="sortItem" data-id="${i.id}"><div class="c" style="background:${colorFor(i.id)}">${coverHTML(i.cover,i.name[0]||'?')}</div><div>${esc(i.name)}${tagged?' ✓':''}</div></button>`}).join('')||'<div class="note" style="padding:0">No items yet — tap + New.</div>'}</div>`;
   const subRow=it?`<div class="row-head" style="padding-top:14px"><div class="label" style="padding:0">${esc(it.name)} · ${esc(cat.subLabel.toLowerCase())}</div><button class="link" data-act="newSubSort">+ New</button></div><div class="hrow" style="gap:10px">${[{id:null,name:'No '+cat.subLabel.toLowerCase().replace(/s$/,'')},...it.subs].map(s=>{const on=S.draft.some(t=>t.item===it.id&&(t.sub||null)===s.id);return `<button class="sq ${on?'on':''}" data-act="sortSub" data-id="${s.id||''}"><div class="c">${s.id?coverHTML(s.cover,''):'<span style="color:var(--mut)">—</span>'}</div><div>${esc(s.name)}${on?' ✓':''}</div></button>`}).join('')}</div>`:'';
   const tags=`<div class="tags">${S.draft.map((t,i)=>{const l=tagLabel(t);const c=colorFor(t.item);return l?`<button class="tag" data-act="draftRm" data-i="${i}"><span class="dot" style="background:${c}"></span>${esc(l)}<span class="x">${I.x.replace(/18/g,'10')}</span></button>`:''}).join('')||'<span style="font-size:12px;font-weight:600;color:var(--mut);align-self:center">No tags yet — pick below</span>'}</div>`;
-  return `<div class="screen">${head}${chips}<div class="scroll" style="padding-bottom:8px"><div class="stage" style="height:38vh"><img src="${fullUrl(p)}" alt=""></div><div style="text-align:center;font-size:12px;font-weight:600;color:var(--mut);padding-top:8px">${esc(p.name)}</div>${tags}<div style="height:12px"></div>${catRow}${itemRow}${subRow}</div>
+  return `<div class="screen">${head}${chips}<div class="scroll" style="padding-bottom:8px"><button class="stage" style="height:38vh;width:calc(100% - 40px)" data-act="openCur" aria-label="Open photo"><img src="${fullUrl(p)}" alt=""></button><div style="text-align:center;font-size:12px;font-weight:600;color:var(--mut);padding-top:8px">${esc(p.name)}</div>${tags}<div style="height:12px"></div>${catRow}${itemRow}${subRow}${quickRows(S.draft,'sortQuick')}</div>
   <div class="bar"><button class="btn" data-act="skip">Skip</button><button class="btn pri" data-act="saveNext">Save &amp; next</button></div></div>`;
 }
 function addTag(arr,itemId,subId){if(arr.some(t=>t.item===itemId&&(t.sub||null)===(subId||null)))return;if(!subId&&arr.some(t=>t.item===itemId))return;if(subId){const k=arr.findIndex(t=>t.item===itemId&&!t.sub);if(k>=0)arr.splice(k,1)}arr.push({item:itemId,sub:subId||null})}
@@ -410,7 +426,7 @@ function moreView(){
   return `<div class="screen"><div class="head"><h1 class="title">More</h1></div><div class="scroll">
   <div class="label">Browse</div><div class="list">${enabledCats().filter(c=>c.id!==(p&&p.id)).map(c=>`<button class="li" data-nav="cat:${c.id}"><div><div class="t">${esc(c.name)}</div><div class="s">${itemsOf(c.id).length} items</div></div>${I.chev}</button>`).join('')}<button class="li" data-act="shuffle" data-k="all"><div class="t">Shuffle</div>${I.chev}</button></div>
   <div class="label" style="padding-top:22px">Tab categories</div><div class="note" style="padding-top:0;padding-bottom:10px">The first enabled category gets its own tab. Others show above. A photo can carry tags from any of them.</div>
-  <div class="list">${cats.map((c,i)=>`<div class="li"><button style="flex:1;text-align:left;color:inherit" data-act="editCat" data-id="${c.id}"><div class="t">${esc(c.name)}</div><div class="s">Sub-buckets: ${esc(c.subLabel)}${c.groupLabel?' · grouped by '+esc(c.groupLabel.toLowerCase()):''} · ${itemsOf(c.id).length} items</div></button><button class="pill" style="height:30px;padding:0 8px" data-act="catUp" data-id="${c.id}" aria-label="Move up" ${i?'':'disabled'}>${I.up}</button><button class="sw ${c.enabled?'on':''}" data-act="catToggle" data-id="${c.id}" aria-label="Enable ${esc(c.name)}"></button></div>`).join('')}</div>
+  <div class="list">${cats.map((c,i)=>`<div class="li"><button style="flex:1;text-align:left;color:inherit" data-act="editCat" data-id="${c.id}"><div class="t">${esc(c.name)}</div><div class="s">${c.quick?'Quick toggles':'Sub-buckets: '+esc(c.subLabel)}${c.groupLabel?' · grouped by '+esc(c.groupLabel.toLowerCase()):''} · ${itemsOf(c.id).length} items</div></button><button class="pill" style="height:30px;padding:0 8px" data-act="catUp" data-id="${c.id}" aria-label="Move up" ${i?'':'disabled'}>${I.up}</button><button class="sw ${c.enabled?'on':''}" data-act="catToggle" data-id="${c.id}" aria-label="Enable ${esc(c.name)}"></button></div>`).join('')}</div>
   <div style="padding:10px 20px 0"><button class="btn" style="width:100%;border:1px dashed var(--sur4);background:none;color:var(--acc2)" data-act="newCat">${I.plus.replace(/20/g,'18')}New category</button></div>
   <div class="label" style="padding-top:22px">Tools</div><div class="list">
    <button class="li" data-act="dupes"><div class="t">Find duplicates</div>${I.chev}</button>
@@ -464,13 +480,15 @@ function formSheet(title,fields,onSave,onDelete){
 function tagSheet(title,initial,onDone){
   let draft=initial.map(t=>({...t}));let catId=primaryCat()&&primaryCat().id;let itemId=null;
   const paint=()=>{
-    const cats=enabledCats();const cat=catById(catId)||cats[0];catId=cat.id;const its=sortedItems(cat);const it=itemById(itemId);
+    const cats=mainCats();const cat=catById(catId)||cats[0];catId=cat.id;const its=sortedItems(cat);const it=itemById(itemId);
     $('#tagBody').innerHTML=`<div class="tags" style="justify-content:flex-start">${draft.map((t,i)=>{const l=tagLabel(t);return l?`<button class="tag" data-rm="${i}"><span class="dot" style="background:${colorFor(t.item)}"></span>${esc(l)}<span class="x">${I.x.replace(/18/g,'10')}</span></button>`:''}).join('')||'<span style="font-size:12px;font-weight:600;color:var(--mut)">No tags yet</span>'}</div><div style="height:12px"></div>
     ${cats.length>1?`<div class="chips" style="padding-bottom:8px">${cats.map(c=>`<button class="pill ${c.id===cat.id?'acc':''}" data-cat="${c.id}">${esc(c.name)}</button>`).join('')}</div>`:''}
     <div class="label">${esc(cat.name)}</div><div class="hrow">${its.map(i=>`<button class="av ${it&&it.id===i.id?'on':''}" data-item="${i.id}"><div class="c" style="background:${colorFor(i.id)}">${coverHTML(i.cover,i.name[0]||'?')}</div><div>${esc(i.name)}${draft.some(t=>t.item===i.id)?' ✓':''}</div></button>`).join('')||'<div class="note" style="padding:0">No items in this category yet.</div>'}</div>
     ${it?`<div class="label" style="padding-top:14px">${esc(it.name)} · ${esc(cat.subLabel.toLowerCase())}</div><div class="hrow" style="gap:10px">${[{id:null,name:'No '+cat.subLabel.toLowerCase().replace(/s$/,'')},...it.subs].map(s=>{const on=draft.some(t=>t.item===it.id&&(t.sub||null)===s.id);return `<button class="sq ${on?'on':''}" data-sub="${s.id||''}"><div class="c">${s.id?coverHTML(s.cover,''):'<span style="color:var(--mut)">—</span>'}</div><div>${esc(s.name)}${on?' ✓':''}</div></button>`}).join('')}</div>`:''}
+    ${quickCats().map(c=>{const qs=sortedItems(c);return qs.length?`<div class="label" style="padding-top:14px">${esc(c.name)}</div><div class="chips" style="padding-bottom:0">${qs.map(i=>{const on=draft.some(t=>t.item===i.id);return `<button class="pill ${on?'acc':''}" data-quick="${i.id}">${esc(i.name)}${on?' ✓':''}</button>`}).join('')}</div>`:''}).join('')}
     <div style="padding:16px 20px 0"><button class="btn pri" style="width:100%" data-done>Apply</button></div>`;
     const B=$('#tagBody');
+    B.querySelectorAll('[data-quick]').forEach(b=>b.onclick=()=>{const id=b.dataset.quick;const k=draft.findIndex(t=>t.item===id);if(k>=0)draft.splice(k,1);else draft.push({item:id,sub:null});paint()});
     B.querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>{draft.splice(+b.dataset.rm,1);paint()});
     B.querySelectorAll('[data-cat]').forEach(b=>b.onclick=()=>{catId=b.dataset.cat;itemId=null;paint()});
     B.querySelectorAll('[data-item]').forEach(b=>b.onclick=()=>{const i=itemById(b.dataset.item);if(!i.subs.length){const k=draft.findIndex(t=>t.item===i.id);if(k>=0)draft.splice(k,1);else draft.push({item:i.id,sub:null});itemId=null}else itemId=i.id;paint()});
@@ -482,12 +500,14 @@ function tagSheet(title,initial,onDone){
 function openViewer(id){
   const p=photoById(id);if(!p)return;
   const paint=()=>{const p=photoById(id);if(!p){closeSheet();return}
-   $('#layer').innerHTML=`<div class="viewer"><div class="vh"><button class="icon-btn" data-v="close" aria-label="Close">${I.x}</button><button class="icon-btn" data-v="fav" aria-label="Favorite">${p.fav?I.starF:I.star}</button></div><div class="vi"><img src="${fullUrl(p)}" alt=""></div>
+   $('#layer').innerHTML=`<div class="viewer"><div class="vh"><button class="icon-btn" data-v="close" aria-label="Close">${I.x}</button><button class="icon-btn" data-v="fav" aria-label="Favorite">${p.fav?I.starF:I.star}</button></div><div class="vi" id="zoomArea"><img src="${fullUrl(p)}" alt="" id="zoomImg" style="touch-action:none;will-change:transform"></div>
    <div class="vf"><div class="tags" style="padding-top:4px">${p.tags.map(t=>{const l=tagLabel(t);return l?`<span class="tag"><span class="dot" style="background:${colorFor(t.item)}"></span>${esc(l)}</span>`:''}).join('')||'<span style="font-size:12px;font-weight:600;color:var(--mut)">No tags</span>'}</div><div style="text-align:center;font-size:11px;font-weight:600;color:var(--mut);padding:4px 0 8px">${esc(p.name)} · ${new Date(p.added).toLocaleDateString()}</div>
-   <div class="bar" style="padding-bottom:4px;background:none"><button class="btn sm" data-v="tags">${I.tagI}Tags</button><button class="btn sm" data-v="cover" ${p.tags.length?'':'disabled'}>Set as cover</button><button class="btn sm danger" data-v="del" aria-label="Delete">${I.trash}</button></div></div></div>`;
+   <div class="bar" style="padding-bottom:4px;background:none"><button class="btn sm" data-v="tags">${I.tagI}Tags</button><button class="btn sm" data-v="edit">${I.edit.replace(/18/g,"16")}Edit</button><button class="btn sm" data-v="cover" ${p.tags.length?'':'disabled'}>Set as cover</button><button class="btn sm danger" data-v="del" aria-label="Delete">${I.trash}</button></div></div></div>`;
    const L=$('#layer');
    L.querySelector('[data-v="close"]').onclick=()=>{closeSheet();render()};
    L.querySelector('[data-v="fav"]').onclick=async()=>{p.fav=!p.fav;await savePhoto(p);paint()};
+   attachZoom($('#zoomArea'),$('#zoomImg'));
+   L.querySelector('[data-v="edit"]').onclick=()=>openEditor(p,paint);
    L.querySelector('[data-v="tags"]').onclick=()=>tagSheet('Tags',p.tags,async d=>{p.tags=d;await savePhoto(p);paint()});
    L.querySelector('[data-v="cover"]').onclick=()=>{
      const opts=[];for(const t of p.tags){const it=itemById(t.item);if(!it)continue;if(!opts.some(o=>o.k==='i'+it.id))opts.push({k:'i'+it.id,l:it.name+' (character cover)',fn:async()=>{it.cover=p.id;await saveItem(it)}});const sb=subOf(it,t.sub);if(sb)opts.push({k:'s'+sb.id,l:it.name+' · '+sb.name,fn:async()=>{sb.cover=p.id;await saveItem(it)}})}
@@ -529,7 +549,7 @@ const actions={
   galFilter:b=>{S.galFilter=b.dataset.k;render()},
   tile:b=>{if(S.select){const id=b.dataset.id;S.select.has(id)?S.select.delete(id):S.select.add(id);render()}else openViewer(b.dataset.id)},
   selStart:()=>{S.select=new Set();render()},selCancel:()=>{S.select=null;render()},
-  selAll:()=>{const list=S.galFilter==='unsorted'?S.photos.filter(p=>!p.tags.length):S.galFilter==='tagged'?S.photos.filter(p=>p.tags.length):S.photos;S.select=S.select.size===list.length?new Set():new Set(list.map(p=>p.id));render()},
+  selAll:()=>{let list=S.galFilter==='unsorted'?S.photos.filter(p=>!p.tags.length):S.galFilter==='tagged'?S.photos.filter(p=>p.tags.length):S.photos;if(S.galType)list=list.filter(p=>p.tags.some(t=>t.item===S.galType));S.select=S.select.size===list.length?new Set():new Set(list.map(p=>p.id));render()},
   selTag:()=>tagSheet(`Tag ${S.select.size} photos`,[],async d=>{for(const id of S.select){const p=photoById(id);for(const t of d)addTag(p.tags,t.item,t.sub);await savePhoto(p)}toast('Tags added');S.select=null;render()}),
   selFav:async()=>{const ps=[...S.select].map(photoById);const all=ps.every(p=>p.fav);for(const p of ps){p.fav=!all;await savePhoto(p)}toast(all?'Removed from favorites':'Added to favorites');S.select=null;render()},
   selExport:async()=>{toast('Preparing zip…');const blob=await buildZip([...S.select].map(photoById),false);shareOrDownload(blob,'photos.zip')},
@@ -549,8 +569,12 @@ const actions={
   sortItem:b=>{const i=itemById(b.dataset.id);if(!i.subs.length){toggleDraft(i.id,null);S.sortItem=null}else S.sortItem=i.id;render()},
   sortSub:b=>{toggleDraft(S.sortItem,b.dataset.id||null);render()},
   draftRm:b=>{S.draft.splice(+b.dataset.i,1);render()},
+  sortQuick:b=>{toggleDraft(b.dataset.id,null);render()},
+  sortQuickNew:b=>newItemSheet(b.dataset.cat,i=>{toggleDraft(i.id,null);render()}),
+  galType:b=>{S.galType=S.galType===b.dataset.k?null:b.dataset.k;render()},
   newItemSort:()=>newItemSheet(S.sortCat,i=>{S.sortItem=i.subs.length?i.id:null;if(!i.subs.length)toggleDraft(i.id,null);render()}),
   newSubSort:()=>subForm(itemById(S.sortItem),null,s=>{toggleDraft(S.sortItem,s.id);render()}),
+  openCur:()=>openViewer(S.sortQueue[S.sortIdx]),
   skip:()=>{S.sortIdx++;if(S.sortIdx>=S.sortQueue.length){toast('End of queue');S.sortIdx=S.sortQueue.length}loadDraft();render()},
   saveNext:async()=>{const p=photoById(S.sortQueue[S.sortIdx]);if(p){p.tags=S.draft.map(t=>({...t}));await savePhoto(p)}S.sortIdx++;loadDraft();render()},
   favFilter:b=>{S.favFilter=b.dataset.k;render()},
@@ -592,9 +616,9 @@ function subForm(it,sub,after){
   },sub?async()=>{if(!confirm(`Delete ${sub.name}? Photos keep the ${it.name} tag.`))return;for(const p of S.photos){let ch=false;p.tags.forEach(t=>{if(t.item===it.id&&t.sub===sub.id){t.sub=null;ch=true}});if(ch)await savePhoto(p)}it.subs=it.subs.filter(s=>s.id!==sub.id);await saveItem(it);S.subId=null;render()}:null);
 }
 function catForm(c){
-  formSheet(c?'Edit category':'New category',[{name:'name',label:'Name',value:c?c.name:'',required:true,ph:'Characters, Shows, Artists…'},{name:'subLabel',label:'Sub-bucket name',value:c?c.subLabel:'',ph:'Outfits, Seasons, Styles…',required:true},{name:'groupLabel',label:'Group items by (optional)',value:c?c.groupLabel:'',ph:'Show, Studio…'}],async v=>{
-    if(c){Object.assign(c,{name:v.name,subLabel:v.subLabel,groupLabel:v.groupLabel});await saveCat(c)}
-    else{const n={id:uid(),name:v.name,subLabel:v.subLabel,groupLabel:v.groupLabel,enabled:true,order:S.cats.length};await saveCat(n);S.cats.push(n)}
+  formSheet(c?'Edit category':'New category',[{name:'name',label:'Name',value:c?c.name:'',required:true,ph:'Characters, Shows, Artists…'},{name:'subLabel',label:'Sub-bucket name',value:c?c.subLabel:'',ph:'Outfits, Seasons, Styles…',required:true},{name:'groupLabel',label:'Group items by (optional)',value:c?c.groupLabel:'',ph:'Show, Studio…'},{name:'quick',label:'Show in Sort as',type:'select',value:c&&c.quick?'1':'0',options:[{v:'0',l:'Scrollable row with sub-buckets (characters, shows)'},{v:'1',l:'Quick toggles, always visible (type, rating, style)'}]}],async v=>{
+    if(c){Object.assign(c,{name:v.name,subLabel:v.subLabel,groupLabel:v.groupLabel,quick:v.quick==='1'});await saveCat(c)}
+    else{const n={id:uid(),name:v.name,subLabel:v.subLabel,groupLabel:v.groupLabel,enabled:true,order:S.cats.length,quick:v.quick==='1'};await saveCat(n);S.cats.push(n)}
     render();
   },c?async()=>{if(!confirm(`Delete ${c.name} and all its items? Photos stay, but lose those tags.`))return;const ids=new Set(itemsOf(c.id).map(i=>i.id));for(const p of S.photos){const b=p.tags.length;p.tags=p.tags.filter(t=>!ids.has(t.item));if(b!==p.tags.length)await savePhoto(p)}for(const id of ids)await DB.del('items',id);S.items=S.items.filter(i=>!ids.has(i.id));await DB.del('cats',c.id);S.cats=S.cats.filter(x=>x.id!==c.id);await seed();render()}:null);
 }
@@ -610,6 +634,75 @@ async function drainShareInbox(){
   if(!('caches' in window))return;
   try{const c=await caches.open('share-inbox');const keys=await c.keys();if(!keys.length)return;const files=[];for(const k of keys){const r=await c.match(k);const b=await r.blob();files.push(new File([b],k.url.split('/').pop()||'shared.jpg',{type:b.type||'image/jpeg'}));await c.delete(k)}if(files.length)await importFiles(files)}catch(e){}
 }
+
+/* ---------- pinch zoom ---------- */
+function attachZoom(area,img){
+  let scale=1,tx=0,ty=0,start=null,lastTap=0;
+  const apply=()=>{img.style.transform=`translate(${tx}px,${ty}px) scale(${scale})`};
+  const clamp=()=>{if(scale<=1){scale=1;tx=0;ty=0;return}const r=area.getBoundingClientRect(),iw=img.clientWidth*scale,ih=img.clientHeight*scale;const mx=Math.max(0,(iw-r.width)/2),my=Math.max(0,(ih-r.height)/2);tx=Math.min(mx,Math.max(-mx,tx));ty=Math.min(my,Math.max(-my,ty))};
+  const dist=t=>Math.hypot(t[0].clientX-t[1].clientX,t[0].clientY-t[1].clientY);
+  area.addEventListener('touchstart',e=>{const t=e.touches;if(t.length===2)start={d:dist(t),s:scale,cx:(t[0].clientX+t[1].clientX)/2,cy:(t[0].clientY+t[1].clientY)/2,tx,ty};else if(t.length===1){start={x:t[0].clientX,y:t[0].clientY,tx,ty};const now=Date.now();if(now-lastTap<300){scale=scale>1?1:2.5;tx=0;ty=0;clamp();apply();start=null}lastTap=now}},{passive:true});
+  area.addEventListener('touchmove',e=>{const t=e.touches;if(!start)return;e.preventDefault();if(t.length===2&&start.d){scale=Math.min(6,Math.max(1,start.s*dist(t)/start.d));const cx=(t[0].clientX+t[1].clientX)/2,cy=(t[0].clientY+t[1].clientY)/2;tx=start.tx+(cx-start.cx);ty=start.ty+(cy-start.cy)}else if(t.length===1&&start.x!==undefined&&scale>1){tx=start.tx+(t[0].clientX-start.x);ty=start.ty+(t[0].clientY-start.y)}clamp();apply()},{passive:false});
+  area.addEventListener('touchend',e=>{if(e.touches.length===0)start=null;else if(e.touches.length===1){const t=e.touches;start={x:t[0].clientX,y:t[0].clientY,tx,ty}}});
+  area.addEventListener('wheel',e=>{e.preventDefault();scale=Math.min(6,Math.max(1,scale*(e.deltaY<0?1.1:0.9)));clamp();apply()},{passive:false});
+}
+
+/* ---------- crop / rotate editor ---------- */
+async function openEditor(p,after){
+  const im=await loadImage(p.full);
+  let rot=0,ratio=null;let crop={x:0,y:0,w:1,h:1}; // fractions of the rotated image
+  const L=$('#layer');
+  L.innerHTML=`<div class="editor"><div class="eh"><button class="icon-btn" data-e="cancel" aria-label="Cancel">${I.x}</button><div style="font-size:16px;font-weight:800">Edit</div><button class="pill on" data-e="save">Save</button></div>
+  <div style="flex:1;min-height:0;display:flex;align-items:center;justify-content:center"><canvas id="ecv"></canvas></div>
+  <div class="chips" style="padding-top:10px;justify-content:center">${[['free','Free'],['1','1:1'],['0.8','4:5'],['0.5625','9:16'],['1.7778','16:9']].map(([v,l])=>`<button class="pill" data-r="${v}">${l}</button>`).join('')}</div>
+  <div class="bar" style="background:none"><button class="btn" data-e="rotl">Rotate ⟲</button><button class="btn" data-e="rotr">Rotate ⟳</button><button class="btn" data-e="reset">Reset</button><button class="btn" data-e="copy">Save as copy</button></div></div>`;
+  const cv=$('#ecv'),ctx=cv.getContext('2d');
+  const rw=()=>rot%180?im.naturalHeight:im.naturalWidth,rh=()=>rot%180?im.naturalWidth:im.naturalHeight;
+  let box={x:0,y:0,w:0,h:0,s:1};
+  function layout(){const host=cv.parentElement;const W=host.clientWidth-24,H=host.clientHeight-24;const s=Math.min(W/rw(),H/rh());cv.width=Math.round(rw()*s);cv.height=Math.round(rh()*s);box={s,w:cv.width,h:cv.height};cv.style.width=cv.width+'px';cv.style.height=cv.height+'px';draw()}
+  function drawImage(c,sx,sy,sw,sh,dw,dh){c.save();c.translate(dw/2,dh/2);c.rotate(rot*Math.PI/180);const iw=rot%180?dh:dw,ih=rot%180?dw:dh;c.drawImage(im,sx,sy,sw,sh,-iw/2,-ih/2,iw,ih);c.restore()}
+  function draw(){ctx.clearRect(0,0,cv.width,cv.height);drawImage(ctx,0,0,im.naturalWidth,im.naturalHeight,cv.width,cv.height);
+    const X=crop.x*cv.width,Y=crop.y*cv.height,W=crop.w*cv.width,H=crop.h*cv.height;
+    ctx.fillStyle='rgba(0,0,0,.55)';ctx.fillRect(0,0,cv.width,Y);ctx.fillRect(0,Y+H,cv.width,cv.height-Y-H);ctx.fillRect(0,Y,X,H);ctx.fillRect(X+W,Y,cv.width-X-W,H);
+    ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.strokeRect(X,Y,W,H);ctx.strokeStyle='rgba(255,255,255,.35)';ctx.lineWidth=1;for(let i=1;i<3;i++){ctx.beginPath();ctx.moveTo(X+W*i/3,Y);ctx.lineTo(X+W*i/3,Y+H);ctx.moveTo(X,Y+H*i/3);ctx.lineTo(X+W,Y+H*i/3);ctx.stroke()}
+    ctx.fillStyle='#ff7a59';[[X,Y],[X+W,Y],[X,Y+H],[X+W,Y+H]].forEach(([a,b])=>{ctx.beginPath();ctx.arc(a,b,9,0,7);ctx.fill()})}
+  function applyRatio(){if(!ratio)return;const iw=rw(),ih=rh();let w=crop.w*iw,h=w/ratio;if(h>crop.h*ih){h=crop.h*ih;w=h*ratio}if(w>iw){w=iw;h=w/ratio}if(h>ih){h=ih;w=h*ratio}crop.w=w/iw;crop.h=h/ih;crop.x=Math.min(crop.x,1-crop.w);crop.y=Math.min(crop.y,1-crop.h)}
+  let drag=null;const MIN=0.08;
+  cv.addEventListener('pointerdown',e=>{cv.setPointerCapture(e.pointerId);const r=cv.getBoundingClientRect();const x=(e.clientX-r.left)/cv.width,y=(e.clientY-r.top)/cv.height;const near=(a,b)=>Math.hypot((x-a)*cv.width,(y-b)*cv.height)<24;
+    const c={...crop};let mode=null;if(near(c.x,c.y))mode='tl';else if(near(c.x+c.w,c.y))mode='tr';else if(near(c.x,c.y+c.h))mode='bl';else if(near(c.x+c.w,c.y+c.h))mode='br';else if(x>c.x&&x<c.x+c.w&&y>c.y&&y<c.y+c.h)mode='move';
+    if(mode)drag={mode,x,y,c}});
+  cv.addEventListener('pointermove',e=>{if(!drag)return;const r=cv.getBoundingClientRect();const x=(e.clientX-r.left)/cv.width,y=(e.clientY-r.top)/cv.height;const dx=x-drag.x,dy=y-drag.y;const c=drag.c;let n={...c};
+    if(drag.mode==='move'){n.x=Math.min(1-c.w,Math.max(0,c.x+dx));n.y=Math.min(1-c.h,Math.max(0,c.y+dy))}
+    else{const right=drag.mode[1]==='r',bottom=drag.mode[0]==='b';
+      if(right)n.w=Math.min(1-c.x,Math.max(MIN,c.w+dx));else{const nx=Math.min(c.x+c.w-MIN,Math.max(0,c.x+dx));n.w=c.w+(c.x-nx);n.x=nx}
+      if(bottom)n.h=Math.min(1-c.y,Math.max(MIN,c.h+dy));else{const ny=Math.min(c.y+c.h-MIN,Math.max(0,c.y+dy));n.h=c.h+(c.y-ny);n.y=ny}
+      if(ratio){const iw=rw(),ih=rh();let w=n.w*iw,h=w/ratio;if(n.y+h/ih>1||(!bottom&&c.y+c.h-h/ih<0)){h=bottom?(1-n.y)*ih:(c.y+c.h)*ih;w=h*ratio}n.w=w/iw;n.h=h/ih;if(!right)n.x=c.x+c.w-n.w;if(!bottom)n.y=c.y+c.h-n.h;if(n.x<0||n.x+n.w>1){return}}}
+    crop=n;draw()});
+  const end=()=>drag=null;cv.addEventListener('pointerup',end);cv.addEventListener('pointercancel',end);
+  L.querySelectorAll('[data-r]').forEach(b=>b.onclick=()=>{L.querySelectorAll('[data-r]').forEach(x=>x.classList.remove('on'));b.classList.add('on');ratio=b.dataset.r==='free'?null:+b.dataset.r;applyRatio();draw()});
+  L.querySelector('[data-e="rotl"]').onclick=()=>{rot=(rot+270)%360;crop={x:0,y:0,w:1,h:1};layout()};
+  L.querySelector('[data-e="rotr"]').onclick=()=>{rot=(rot+90)%360;crop={x:0,y:0,w:1,h:1};layout()};
+  L.querySelector('[data-e="reset"]').onclick=()=>{rot=0;ratio=null;crop={x:0,y:0,w:1,h:1};L.querySelectorAll('[data-r]').forEach(x=>x.classList.remove('on'));layout()};
+  L.querySelector('[data-e="cancel"]').onclick=()=>{L.innerHTML='';after()};
+  async function commit(asCopy){
+    const W=Math.round(crop.w*rw()),H=Math.round(crop.h*rh());
+    // render rotated full image, then cut the crop
+    const full=document.createElement('canvas');full.width=rw();full.height=rh();drawImage(full.getContext('2d'),0,0,im.naturalWidth,im.naturalHeight,full.width,full.height);
+    const out=document.createElement('canvas');out.width=W;out.height=H;out.getContext('2d').drawImage(full,Math.round(crop.x*rw()),Math.round(crop.y*rh()),W,H,0,0,W,H);
+    const blob=await toBlob(out,.9);const im2=await loadImage(blob);
+    const fullB=await toBlob(draw2(im2,2000),.86),thumbB=await toBlob(draw2(im2,320),.8);
+    const target=asCopy?{...p,id:uid(),name:p.name.replace(/(\.\w+)?$/,' (edited)$1'),imported:Date.now(),tags:p.tags.map(t=>({...t}))}:p;
+    Object.assign(target,{full:fullB,thumb:thumbB,w:im2.naturalWidth,h:im2.naturalHeight,hash:dhash(im2)});
+    ['t','f'].forEach(k=>{if(urls[k+target.id]){URL.revokeObjectURL(urls[k+target.id]);delete urls[k+target.id]}});
+    await savePhoto(target);if(asCopy){S.photos.push(target);S.photos.sort(byNewest)}
+    L.innerHTML='';toast(asCopy?'Saved as copy':'Photo updated');if(asCopy){render();openViewer(target.id)}else after();
+  }
+  const draw2=draw_;
+  L.querySelector('[data-e="save"]').onclick=()=>commit(false);
+  L.querySelector('[data-e="copy"]').onclick=()=>commit(true);
+  requestAnimationFrame(layout);
+}
+const draw_=(im,max)=>draw(im,max);
 
 /* ---------- boot ---------- */
 $('#picker').onchange=e=>{importFiles(e.target.files);e.target.value=''};
