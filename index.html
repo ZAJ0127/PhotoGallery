@@ -124,6 +124,8 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--acc);outline-offset
 .viewer .vi img{max-width:100%;max-height:100%;object-fit:contain}
 .viewer .vf{padding:8px 0 calc(var(--sab) + 10px);background:rgba(17,17,20,.9)}
 .viewer.immersive .vh,.viewer.immersive .vf{display:none}
+#peek{position:fixed;inset:0;z-index:70;background:rgba(0,0,0,.82);display:flex;align-items:center;justify-content:center;pointer-events:none}
+#peek img,#peek video{max-width:80vw;max-height:80vh;border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.6)}
 .toast{position:fixed;left:50%;bottom:calc(var(--sab) + 90px);transform:translateX(-50%);background:var(--txt);color:#111114;padding:10px 12px 10px 16px;border-radius:14px;font-size:13px;font-weight:700;z-index:40;opacity:0;transition:opacity .2s;pointer-events:none;display:flex;align-items:center;gap:12px;max-width:calc(100% - 40px)}
 .toast.on{opacity:1;pointer-events:auto}
 .toast button{background:#111114;color:#fff;border-radius:10px;padding:6px 10px;font-weight:800;font-size:12px}
@@ -1123,15 +1125,22 @@ function catForm(c){
   },c?async()=>{if(!await ask(`Delete ${c.name} and all its items? Photos stay, but lose those tags.`,{ok:'Delete',danger:true}))return;const ids=new Set(itemsOf(c.id).map(i=>i.id));for(const p of S.photos){const b=p.tags.length;p.tags=p.tags.filter(t=>!ids.has(t.item));if(b!==p.tags.length)await DB.put('photos',meta(p))}for(const id of ids)await DB.del('items',id);S.items=S.items.filter(i=>!ids.has(i.id));await DB.del('cats',c.id);S.cats=S.cats.filter(x=>x.id!==c.id);await seed();recount();render()}:null);
 }
 
-/* ---------- long-press: select tiles, adjust outfit covers ---------- */
-let lp;
+/* ---------- long-press: select tiles, peek in select mode, adjust outfit covers ---------- */
+let lp,peeking=false,suppressClick=false;
+function showPeek(id){const p=photoById(id);if(!p)return;let e=$('#peek');if(!e){e=document.createElement('div');e.id='peek';document.body.appendChild(e)}e.innerHTML=p.kind==='video'?`<video data-p="${id}" data-k="f" muted playsinline autoplay loop></video>`:`<img alt="" data-p="${id}" data-k="f">`;hydrate(e);peeking=true;navigator.vibrate&&navigator.vibrate(8)}
+function hidePeek(){const e=$('#peek');if(e)e.remove();if(peeking){peeking=false;suppressClick=true;setTimeout(()=>suppressClick=false,400)}}
 document.addEventListener('pointerdown',e=>{
   const t=e.target.closest('.tile');
-  if(t&&!S.select&&['gallery','item','favorites','search'].includes(S.view)){lp=setTimeout(()=>{S.select=new Set([t.dataset.id]);render();navigator.vibrate&&navigator.vibrate(10)},450);return}
+  if(t){const inPicker=!!t.dataset.pp;const id=t.dataset.id||t.dataset.pp;
+    if(S.select||inPicker){lp=setTimeout(()=>showPeek(id),350);return}
+    if(['gallery','item','favorites','search'].includes(S.view)){lp=setTimeout(()=>{S.select=new Set([id]);render();navigator.vibrate&&navigator.vibrate(10)},450);return}}
   const sc=e.target.closest('[data-lp="sub"]');
   if(sc&&S.view==='item'){lp=setTimeout(()=>{const it=itemById(S.itemId);const sb=subOf(it,sc.dataset.id);const p=sb&&photoById(sb.cover);if(!p){toast('This outfit has no cover yet — open a photo and tap Set as cover');return}navigator.vibrate&&navigator.vibrate(10);pickCover(p,4/3,sb.coverCrop,async crop=>{sb.coverCrop=crop;await saveItem(it);render()})},450)}
 });
-['pointerup','pointercancel','pointermove'].forEach(ev=>document.addEventListener(ev,()=>clearTimeout(lp)));
+['pointerup','pointercancel'].forEach(ev=>document.addEventListener(ev,()=>{clearTimeout(lp);hidePeek()}));
+document.addEventListener('pointermove',()=>{if(!peeking)clearTimeout(lp)});
+document.addEventListener('click',e=>{if(suppressClick&&e.target.closest('.tile')){e.stopPropagation();e.preventDefault()}},true);
+document.addEventListener('contextmenu',e=>{if(e.target.closest('.tile'))e.preventDefault()});
 
 /* ---------- share-target inbox ---------- */
 async function drainShareInbox(){
